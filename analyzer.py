@@ -1,6 +1,7 @@
 """Анализатор файлов на угрозы"""
 import os
 import math
+import hashlib
 
 # Подозрительные API вызовы
 SUSPICIOUS_APIS = [
@@ -69,6 +70,9 @@ SUSPICIOUS_PATHS = [
 ]
 
 class FileAnalyzer:
+    def __init__(self, signature_db=None):
+        self.signature_db = signature_db
+
     def analyze(self, filepath):
         """
         Анализ файла
@@ -76,13 +80,22 @@ class FileAnalyzer:
         """
         threats = []
         score = 0
-        
+
         try:
             filename = os.path.basename(filepath).lower()
             ext = os.path.splitext(filename)[1].lower()
             filepath_lower = filepath.lower()
-            
+
+            # 0. Проверка на белый список (если есть сигнатурная база)
+            if self.signature_db and self.signature_db._is_whitelisted(filename, filepath):
+                return 'clean', [], 0
+
             # 1. Проверка имени файла
+            for name in SUSPICIOUS_NAMES:
+                if name in filename:
+                    threats.append(f"Подозрительное имя файла: '{name}'")
+                    score += 1
+                    break
             for name in SUSPICIOUS_NAMES:
                 if name in filename:
                     threats.append(f"Подозрительное имя файла: '{name}'")

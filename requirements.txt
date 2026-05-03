@@ -7,3 +7,5 @@ pathlib
 datetime
 threading
 time
+requests
+hashlib

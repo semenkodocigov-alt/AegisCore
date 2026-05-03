@@ -17,5 +17,11 @@ if __name__ == "__main__":
     print("🛡️ Aegis Core v2.0")
     print("=" * 40)
     
-    app = AegisApp()
-    app.run()
+    try:
+        app = AegisApp()
+        app.run()
+    except Exception as e:
+        print(f"❌ Ошибка запуска приложения: {e}")
+        import traceback
+        traceback.print_exc()
+        input("Нажмите Enter для выхода...")

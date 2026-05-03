@@ -6,6 +6,7 @@ import os
 import time
 import winsound
 import math
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -25,9 +26,16 @@ class AegisApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Aegis Core - Антивирусная защита")
-        self.root.geometry("900x600")
-        self.root.configure(bg='#f0f2f5')
+        self.root.geometry("1100x700")  # Увеличено для лучшего вида
+        self.root.configure(bg='#f8fafc')
         self.root.overrideredirect(True)
+        
+        # Включаем высокое DPI для сглаживания
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(1)
+        except:
+            pass
         
         # Компоненты
         self.scanner = FileScanner()
@@ -38,19 +46,44 @@ class AegisApp:
         self.files_scanned = 0
         self.threats_found = 0
         
-        # Цвета
+        # Современная цветовая схема
         self.colors = {
-            'bg': '#f0f2f5',
-            'surface': '#ffffff',
-            'header': '#1e272e',
-            'green': '#27ae60',
-            'red': '#e74c3c',
-            'orange': '#f39c12',
-            'blue': '#3498db',
-            'text': '#2c3e50',
-            'text_secondary': '#7f8c8d',
-            'console_bg': '#1a1f2e',
-            'console_fg': '#00e676'
+            'bg': '#f8fafc',           # Более светлый фон
+            'surface': '#ffffff',      # Чистый белый
+            'surface_hover': '#f1f5f9', # Светло-серый для hover
+            'header': '#0f172a',       # Темно-синий заголовок
+            'header_gradient': '#1e293b', # Градиент для заголовка
+            'green': '#10b981',        # Современный зеленый
+            'green_hover': '#059669',  # Темнее для hover
+            'red': '#ef4444',          # Современный красный
+            'red_hover': '#dc2626',    # Темнее для hover
+            'orange': '#f97316',       # Современный оранжевый
+            'orange_hover': '#ea580c', # Темнее для hover
+            'blue': '#3b82f6',         # Современный синий
+            'blue_hover': '#2563eb',   # Темнее для hover
+            'purple': '#8b5cf6',       # Фиолетовый для акцентов
+            'text': '#1e293b',         # Темно-синий текст
+            'text_secondary': '#64748b', # Серый текст
+            'text_muted': '#94a3b8',   # Светло-серый текст
+            'border': '#e2e8f0',       # Светлая граница
+            'border_hover': '#cbd5e1', # Граница при hover
+            'console_bg': '#0f172a',   # Темный фон консоли
+            'console_fg': '#38bdf8',   # Голубой текст консоли
+            'shadow': '#000000',       # Тень
+            'success': '#22c55e',      # Успех
+            'warning': '#f59e0b',      # Предупреждение
+            'error': '#ef4444'         # Ошибка
+        }
+        
+        # Современные шрифты
+        self.fonts = {
+            'header': ('Segoe UI', 18, 'bold'),
+            'title': ('Segoe UI', 14, 'bold'),
+            'subtitle': ('Segoe UI', 10),
+            'body': ('Segoe UI', 10),
+            'button': ('Segoe UI', 10, 'bold'),
+            'console': ('Consolas', 9),
+            'small': ('Segoe UI', 8)
         }
         
         # Контакты
@@ -80,23 +113,34 @@ class AegisApp:
         main = tk.Frame(self.root, bg=self.colors['bg'])
         main.pack(fill=tk.BOTH, expand=True)
         
-        # Заголовок
-        header = tk.Frame(main, bg=self.colors['header'], height=50)
+        # Заголовок с градиентом
+        header = tk.Frame(main, bg=self.colors['header'], height=60)  # Увеличена высота
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         header.bind("<Button-1>", self._start_move)
         header.bind("<B1-Motion>", self._move_window)
         
-        tk.Label(header, text="🛡️ AEGIS CORE", font=("Segoe UI", 16, "bold"),
-                bg=self.colors['header'], fg='white').pack(side=tk.LEFT, padx=20, pady=10)
+        # Градиентный эффект для заголовка
+        header_canvas = tk.Canvas(header, height=60, bg=self.colors['header'], highlightthickness=0)
+        header_canvas.pack(fill=tk.X)
         
-        tk.Label(header, text="Антивирус", font=("Segoe UI", 9),
-                bg=self.colors['header'], fg='#95a5a6').pack(side=tk.LEFT, pady=10)
+        # Градиент от header к header_gradient
+        for i in range(60):
+            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i/60)
+            header_canvas.create_line(0, i, 1100, i, fill=color)
         
-        tk.Button(header, text="✕", command=self.root.destroy,
-                  font=("Segoe UI", 11, "bold"), bg=self.colors['header'],
-                  fg='white', bd=0, activebackground='#c0392b',
-                  activeforeground='white', cursor='hand2').pack(side=tk.RIGHT, padx=10, pady=10)
+        # Текст заголовка
+        header_canvas.create_text(30, 30, text="🛡️ AEGIS CORE", 
+                                font=self.fonts['header'], fill='white', anchor='w')
+        header_canvas.create_text(30, 45, text="Антивирусная защита", 
+                                font=self.fonts['subtitle'], fill='#94a3b8', anchor='w')
+        
+        # Кнопка закрытия с hover эффектом
+        close_btn = tk.Button(header, text="✕", command=self.root.destroy,
+                            font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
+                            fg='white', bd=0, activebackground=self.colors['red'],
+                            activeforeground='white', cursor='hand2', width=3, height=1)
+        close_btn.place(x=1050, y=15)
         
         # Контент
         content = tk.Frame(main, bg=self.colors['bg'])
@@ -106,149 +150,295 @@ class AegisApp:
         left = tk.Frame(content, bg=self.colors['bg'])
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 7))
         
-        # Статус
-        status = tk.Frame(left, bg=self.colors['surface'])
-        status.pack(fill=tk.X, pady=(0, 10))
+        # Статус с современным дизайном
+        status = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+        status.pack(fill=tk.X, pady=(0, 15))
+        
+        # Тень для статуса
+        status_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
+        status_shadow.pack(fill=tk.X, pady=(0, 1))
         
         inner = tk.Frame(status, bg=self.colors['surface'])
-        inner.pack(padx=20, pady=15, fill=tk.X)
+        inner.pack(padx=25, pady=20, fill=tk.X)
         
-        tk.Label(inner, text="✅ ЗАЩИТА АКТИВНА", font=("Segoe UI", 13, "bold"),
-                bg=self.colors['surface'], fg=self.colors['green']).pack(anchor='w')
+        # Иконка статуса
+        status_icon = tk.Label(inner, text="🛡️", font=("Segoe UI", 20), 
+                             bg=self.colors['surface'], fg=self.colors['success'])
+        status_icon.pack(side=tk.LEFT, padx=(0, 15))
         
-        tk.Label(inner, text=f"Сигнатур: {self.scanner.sig_db.total_count()}",
-                font=("Segoe UI", 9), bg=self.colors['surface'],
-                fg=self.colors['text_secondary']).pack(anchor='w')
+        # Текст статуса
+        status_text = tk.Frame(inner, bg=self.colors['surface'])
+        status_text.pack(side=tk.LEFT, fill=tk.Y)
         
-        # Анимация сканирования
-        self.animation_canvas = tk.Canvas(left, width=100, height=100, bg=self.colors['bg'], highlightthickness=0)
-        self.animation_canvas.pack(pady=10)
+        tk.Label(status_text, text="ЗАЩИТА АКТИВНА", font=self.fonts['title'],
+                bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
+        
+        tk.Label(status_text, text=f"Сигнатур в базе: {self.scanner.sig_db.total_count()}",
+                font=self.fonts['small'], bg=self.colors['surface'],
+                fg=self.colors['text_muted']).pack(anchor='w')
+        
+        # Анимация сканирования с улучшенным дизайном
+        self.animation_canvas = tk.Canvas(left, width=120, height=120, bg=self.colors['bg'], highlightthickness=0)
+        self.animation_canvas.pack(pady=15)
         self._draw_animation_idle()
         
-        # Кнопки
+        # Кнопки с современным дизайном
         scans_frame = tk.Frame(left, bg=self.colors['bg'])
         scans_frame.pack(fill=tk.X)
         
-        tk.Label(scans_frame, text="Сканирование", font=("Segoe UI", 12, "bold"),
-                bg=self.colors['bg'], fg=self.colors['text']).pack(anchor='w', pady=(0, 10))
+        tk.Label(scans_frame, text="Сканирование", font=self.fonts['title'],
+                bg=self.colors['bg'], fg=self.colors['text']).pack(anchor='w', pady=(0, 15))
         
-        # Карточки сканирования
+        # Карточки сканирования с улучшенным дизайном
         scans = [
-            ("⚡ Быстрая проверка", "Критические области", self._quick_scan, self.colors['green']),
-            ("🔍 Полная проверка", "Глубокий анализ", self._full_scan, self.colors['blue']),
-            ("📁 Проверить файл", "Выборочная проверка", self._scan_file, self.colors['orange'])
+            ("⚡ Быстрая проверка", "Критические области системы", self._quick_scan, self.colors['green'], self.colors['green_hover']),
+            ("🔍 Полная проверка", "Глубокий анализ всех файлов", self._full_scan, self.colors['blue'], self.colors['blue_hover']),
+            ("📁 Проверить файл", "Выборочная проверка файла", self._scan_file, self.colors['orange'], self.colors['orange_hover'])
         ]
         
-        for title, desc, cmd, color in scans:
-            card = tk.Frame(left, bg=self.colors['surface'])
-            card.pack(fill=tk.X, pady=2)
+        for title, desc, cmd, color, hover_color in scans:
+            card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+            card.pack(fill=tk.X, pady=3)
+            
+            # Тень для карточки
+            card_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
+            card_shadow.pack(fill=tk.X, pady=(0, 1))
             
             cinner = tk.Frame(card, bg=self.colors['surface'])
-            cinner.pack(fill=tk.X, padx=20, pady=10)
+            cinner.pack(fill=tk.X, padx=25, pady=15)
             
-            tk.Label(cinner, text=title, font=("Segoe UI", 11, "bold"),
-                    bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT)
+            # Иконка и текст
+            icon_label = tk.Label(cinner, text=title.split()[0], font=("Segoe UI", 16), 
+                                bg=self.colors['surface'], fg=color)
+            icon_label.pack(side=tk.LEFT, padx=(0, 15))
             
-            tk.Label(cinner, text=desc, font=("Segoe UI", 8),
-                    bg=self.colors['surface'], fg=self.colors['text_secondary']).pack(side=tk.LEFT, padx=10)
+            text_frame = tk.Frame(cinner, bg=self.colors['surface'])
+            text_frame.pack(side=tk.LEFT, fill=tk.Y)
             
-            tk.Button(cinner, text="▶", command=cmd, font=("Segoe UI", 10, "bold"),
-                     bg=color, fg='white', bd=0, padx=15, pady=4,
-                     cursor='hand2').pack(side=tk.RIGHT)
+            tk.Label(text_frame, text=title[2:], font=self.fonts['body'],
+                    bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
+            
+            tk.Label(text_frame, text=desc, font=self.fonts['small'],
+                    bg=self.colors['surface'], fg=self.colors['text_muted']).pack(anchor='w')
+            
+            # Кнопка с hover эффектом
+            btn = tk.Button(cinner, text="Запустить", command=cmd, font=self.fonts['button'],
+                          bg=color, fg='white', bd=0, padx=20, pady=8,
+                          cursor='hand2', relief='flat')
+            btn.pack(side=tk.RIGHT)
+            
+            # Hover эффекты
+            def on_enter(e, b=btn, c=color, h=hover_color):
+                b.config(bg=h)
+            def on_leave(e, b=btn, c=color):
+                b.config(bg=c)
+            
+            btn.bind("<Enter>", on_enter)
+            btn.bind("<Leave>", on_leave)
         
-        # USB мониторинг
-        usb_frame = tk.Frame(left, bg=self.colors['bg'])
-        usb_frame.pack(fill=tk.X, pady=(10, 0))
+        # USB мониторинг с современным дизайном
+        usb_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+        usb_card.pack(fill=tk.X, pady=3)
         
-        usb_card = tk.Frame(left, bg=self.colors['surface'])
-        usb_card.pack(fill=tk.X, pady=2)
+        # Тень для USB карточки
+        usb_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
+        usb_shadow.pack(fill=tk.X, pady=(0, 1))
         
         usb_inner = tk.Frame(usb_card, bg=self.colors['surface'])
-        usb_inner.pack(fill=tk.X, padx=20, pady=10)
+        usb_inner.pack(fill=tk.X, padx=25, pady=15)
         
-        tk.Label(usb_inner, text="🔌 USB Защита", font=("Segoe UI", 11, "bold"),
-                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT)
+        # USB иконка
+        usb_icon = tk.Label(usb_inner, text="🔌", font=("Segoe UI", 16), 
+                          bg=self.colors['surface'], fg=self.colors['purple'])
+        usb_icon.pack(side=tk.LEFT, padx=(0, 15))
         
-        tk.Label(usb_inner, text="Автопроверка USB", font=("Segoe UI", 8),
-                bg=self.colors['surface'], fg=self.colors['text_secondary']).pack(side=tk.LEFT, padx=10)
+        # USB текст
+        usb_text = tk.Frame(usb_inner, bg=self.colors['surface'])
+        usb_text.pack(side=tk.LEFT, fill=tk.Y)
         
-        self.usb_button = tk.Button(usb_inner, text="ВКЛ", command=self._toggle_usb_monitoring,
-                                   font=("Segoe UI", 10, "bold"), bg=self.colors['red'],
-                                   fg='white', bd=0, padx=15, pady=4, cursor='hand2')
-        self.usb_button.pack(side=tk.RIGHT)
-        
-        # Правая панель - лог + список угроз
-        right = tk.Frame(content, bg=self.colors['surface'], width=350)
-        right.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(7, 0))
-        right.pack_propagate(False)
-        
-        threats_frame = tk.Frame(right, bg=self.colors['surface'])
-        threats_frame.pack(fill=tk.X, padx=15, pady=(10, 0))
-        
-        tk.Label(threats_frame, text="🔴 Обнаруженные файлы", font=("Segoe UI", 11, "bold"),
+        tk.Label(usb_text, text="USB Защита", font=self.fonts['body'],
                 bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
         
-        list_frame = tk.Frame(threats_frame, bg=self.colors['surface'])
-        list_frame.pack(fill=tk.BOTH, expand=False, pady=(5, 8))
+        tk.Label(usb_text, text="Автопроверка подключенных устройств", font=self.fonts['small'],
+                bg=self.colors['surface'], fg=self.colors['text_muted']).pack(anchor='w')
+        
+        # USB кнопка с hover
+        self.usb_button = tk.Button(usb_inner, text="ВКЛ", command=self._toggle_usb_monitoring,
+                                  font=self.fonts['button'], bg=self.colors['red'],
+                                  fg='white', bd=0, padx=20, pady=8, cursor='hand2', relief='flat')
+        self.usb_button.pack(side=tk.RIGHT)
+        
+        # Hover для USB кнопки
+        def usb_enter(e):
+            if self.usb_monitoring:
+                self.usb_button.config(bg=self.colors['green_hover'])
+            else:
+                self.usb_button.config(bg=self.colors['red_hover'])
+        
+        def usb_leave(e):
+            if self.usb_monitoring:
+                self.usb_button.config(bg=self.colors['green'])
+            else:
+                self.usb_button.config(bg=self.colors['red'])
+        
+        self.usb_button.bind("<Enter>", usb_enter)
+        self.usb_button.bind("<Leave>", usb_leave)
+        
+        # Кнопка очистки кэша
+        cache_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+        cache_card.pack(fill=tk.X, pady=3)
+        
+        cache_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
+        cache_shadow.pack(fill=tk.X, pady=(0, 1))
+        
+        cache_inner = tk.Frame(cache_card, bg=self.colors['surface'])
+        cache_inner.pack(fill=tk.X, padx=25, pady=15)
+        
+        # Иконка кэша
+        cache_icon = tk.Label(cache_inner, text="🗂️", font=("Segoe UI", 16),
+                            bg=self.colors['surface'], fg=self.colors['blue'])
+        cache_icon.pack(side=tk.LEFT, padx=(0, 15))
+        
+        cache_text = tk.Frame(cache_inner, bg=self.colors['surface'])
+        cache_text.pack(side=tk.LEFT, fill=tk.Y)
+        
+        tk.Label(cache_text, text="Очистка кэша", font=self.fonts['body'],
+                bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
+        
+        tk.Label(cache_text, text="Очистить кэш приложений и временные файлы",
+                font=self.fonts['small'], bg=self.colors['surface'],
+                fg=self.colors['text_muted']).pack(anchor='w')
+        
+        # Кнопка очистки кэша
+        cache_btn = tk.Button(cache_inner, text="Очистить", command=self._clear_cache,
+                            font=self.fonts['button'], bg=self.colors['blue'], fg='white',
+                            bd=0, padx=20, pady=8, cursor='hand2', relief='flat')
+        cache_btn.pack(side=tk.RIGHT)
+        
+        # Hover эффекты для кнопки кэша
+        def cache_enter(e):
+            cache_btn.config(bg=self.colors['blue_hover'])
+        def cache_leave(e):
+            cache_btn.config(bg=self.colors['blue'])
+        
+        cache_btn.bind("<Enter>", cache_enter)
+        cache_btn.bind("<Leave>", cache_leave)
+        
+        # Правая панель - лог + список угроз с современным дизайном
+        right = tk.Frame(content, bg=self.colors['surface'], width=400)  # Увеличена ширина
+        right.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
+        right.pack_propagate(False)
+        
+        # Список угроз с улучшенным дизайном
+        threats_frame = tk.Frame(right, bg=self.colors['surface'])
+        threats_frame.pack(fill=tk.X, padx=20, pady=(15, 0))
+        
+        # Заголовок угроз
+        threats_header = tk.Frame(threats_frame, bg=self.colors['surface'])
+        threats_header.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(threats_header, text="🚨", font=("Segoe UI", 16), 
+                bg=self.colors['surface'], fg=self.colors['error']).pack(side=tk.LEFT)
+        
+        tk.Label(threats_header, text="Обнаруженные угрозы", font=self.fonts['title'],
+                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(threats_header, text="🗑️", command=self._clear_threats_list,
+                 font=self.fonts['small'], bg=self.colors['surface'],
+                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
+        
+        # Список угроз
+        list_frame = tk.Frame(threats_frame, bg=self.colors['surface'], relief='sunken', bd=1)
+        list_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 15))
         
         self.threats_listbox = tk.Listbox(
             list_frame,
-            height=6,
-            bg='#f7f9fc',
-            fg=self.colors['text'],
+            height=8,  # Увеличена высота
+            bg=self.colors['console_bg'],
+            fg=self.colors['console_fg'],
             selectbackground=self.colors['blue'],
-            bd=1,
-            relief='solid'
+            selectforeground='white',
+            bd=0,
+            relief='flat',
+            font=self.fonts['console']
         )
-        self.threats_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.threats_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
         
-        threats_scroll = tk.Scrollbar(list_frame, command=self.threats_listbox.yview)
+        threats_scroll = tk.Scrollbar(list_frame, command=self.threats_listbox.yview,
+                                    bg=self.colors['border'], troughcolor=self.colors['surface'])
         threats_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.threats_listbox.config(yscrollcommand=threats_scroll.set)
         
+        # Лог с улучшенным дизайном
         log_header = tk.Frame(right, bg=self.colors['surface'])
-        log_header.pack(fill=tk.X, padx=15, pady=(0, 5))
+        log_header.pack(fill=tk.X, padx=20, pady=(0, 10))
         
-        tk.Label(log_header, text="📋 Журнал", font=("Segoe UI", 11, "bold"),
-                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT)
+        log_title_frame = tk.Frame(log_header, bg=self.colors['surface'])
+        log_title_frame.pack(side=tk.LEFT)
         
-        tk.Button(log_header, text="✕", command=self._clear_log,
-                 font=("Segoe UI", 9), bg=self.colors['surface'],
-                 fg=self.colors['red'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
+        tk.Label(log_title_frame, text="📋", font=("Segoe UI", 16), 
+                bg=self.colors['surface'], fg=self.colors['blue']).pack(side=tk.LEFT)
         
+        tk.Label(log_title_frame, text="Журнал сканирования", font=self.fonts['title'],
+                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(log_header, text="🗑️", command=self._clear_log,
+                 font=self.fonts['small'], bg=self.colors['surface'],
+                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
+        
+        # Виджет лога
         self.log_widget = scrolledtext.ScrolledText(
-            right, wrap=tk.WORD, font=("Consolas", 9),
+            right, wrap=tk.WORD, font=self.fonts['console'],
             bg=self.colors['console_bg'], fg=self.colors['console_fg'],
-            insertbackground='white', height=18
+            insertbackground=self.colors['console_fg'], 
+            selectbackground=self.colors['blue'], selectforeground='white',
+            bd=0, relief='flat', padx=10, pady=5
         )
-        self.log_widget.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 10))
+        self.log_widget.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 15))
         
-        # Прогресс
+        # Прогресс с современным дизайном
         self.progress_frame = tk.Frame(right, bg=self.colors['surface'])
-        self.progress_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+        self.progress_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+        
+        # Прогресс-бар с кастомным стилем
+        style = ttk.Style()
+        style.configure("Modern.Horizontal.TProgressbar",
+                       background=self.colors['success'],
+                       troughcolor=self.colors['surface'],
+                       borderwidth=0,
+                       lightcolor=self.colors['success'],
+                       darkcolor=self.colors['success'])
         
         self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate',
-                                            style="green.Horizontal.TProgressbar")
-        self.progress_bar.pack(fill=tk.X)
+                                            style="Modern.Horizontal.TProgressbar",
+                                            length=400)
+        self.progress_bar.pack(fill=tk.X, pady=(0, 5))
         
-        self.progress_label = tk.Label(self.progress_frame, text="Готов",
-                                       font=("Segoe UI", 8), bg=self.colors['surface'],
-                                       fg=self.colors['text_secondary'])
+        self.progress_label = tk.Label(self.progress_frame, text="Готов к работе",
+                                       font=self.fonts['small'], bg=self.colors['surface'],
+                                       fg=self.colors['text_muted'])
         self.progress_label.pack(anchor='w')
         
-        # Футер
-        footer = tk.Frame(main, bg=self.colors['header'])
+        # Футер с градиентом
+        footer = tk.Frame(main, bg=self.colors['header'], height=40)
         footer.pack(fill=tk.X)
+        footer.pack_propagate(False)
         
-        finner = tk.Frame(footer, bg=self.colors['header'])
-        finner.pack(padx=20, pady=6, fill=tk.X)
+        # Градиент для футера
+        footer_canvas = tk.Canvas(footer, height=40, bg=self.colors['header'], highlightthickness=0)
+        footer_canvas.pack(fill=tk.X)
         
-        tk.Label(finner, text=f"v{self.version} | {self.author_email}",
-                font=("Segoe UI", 8), bg=self.colors['header'],
-                fg='#95a5a6').pack(side=tk.LEFT)
+        for i in range(40):
+            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i/40)
+            footer_canvas.create_line(0, i, 1100, i, fill=color)
         
-        tk.Label(finner, text="© 2026 Aegis Core", font=("Segoe UI", 8),
-                bg=self.colors['header'], fg='#95a5a6').pack(side=tk.RIGHT)
+        # Информация в футере
+        footer_canvas.create_text(30, 20, text=f"v{self.version}", 
+                                font=self.fonts['small'], fill='#94a3b8', anchor='w')
+        footer_canvas.create_text(550, 20, text="© 2026 Aegis Core", 
+                                font=self.fonts['small'], fill='#94a3b8', anchor='center')
+        footer_canvas.create_text(1070, 20, text=self.author_email, 
+                                font=self.fonts['small'], fill='#94a3b8', anchor='e')
     
     def _log(self, msg):
         """Логирование"""
@@ -324,6 +514,27 @@ class AegisApp:
         x = event.x_root - self._drag_x
         y = event.y_root - self._drag_y
         self.root.geometry(f"+{x}+{y}")
+    
+    def _interpolate_color(self, color1, color2, factor):
+        """Интерполяция между двумя цветами"""
+        try:
+            # Преобразуем hex в RGB
+            r1 = int(color1[1:3], 16)
+            g1 = int(color1[3:5], 16)
+            b1 = int(color1[5:7], 16)
+            
+            r2 = int(color2[1:3], 16)
+            g2 = int(color2[3:5], 16)
+            b2 = int(color2[5:7], 16)
+            
+            # Интерполяция
+            r = int(r1 + (r2 - r1) * factor)
+            g = int(g1 + (g2 - g1) * factor)
+            b = int(b1 + (b2 - b1) * factor)
+            
+            return f"#{r:02x}{g:02x}{b:02x}"
+        except:
+            return color1
     
     def _draw_animation_idle(self):
         """Рисование статичной иконки"""
@@ -587,15 +798,77 @@ class AegisApp:
             self.is_scanning = False
             self._stop_animation()
     
+    def _clear_cache(self):
+        """Очистка кэша приложений"""
+        try:
+            self._log("🧹 Начинаем очистку кэша...")
+            
+            cleaned_size = 0
+            
+            # Очистка только нашего кэша VirusTotal
+            try:
+                cache_file = Path(__file__).parent / "cache" / "vt_cache.json"
+                if cache_file.exists():
+                    size = cache_file.stat().st_size
+                    cache_file.unlink()
+                    cleaned_size += size
+                    self._log("✅ Очищен кэш VirusTotal")
+            except Exception as e:
+                self._log(f"⚠️ Ошибка очистки VT кэша: {e}")
+            
+            # Безопасная очистка временных файлов (только наши)
+            try:
+                temp_dir = Path.home() / "AppData" / "Local" / "Temp"
+                if temp_dir.exists():
+                    # Очищаем только файлы старше 1 дня и меньше 10MB
+                    import time
+                    current_time = time.time()
+                    
+                    for file_path in temp_dir.glob("*"):
+                        if file_path.is_file():
+                            try:
+                                stat = file_path.stat()
+                                # Файл старше 1 дня и меньше 10MB
+                                if (current_time - stat.st_mtime > 86400 and 
+                                    stat.st_size < 10 * 1024 * 1024):
+                                    file_path.unlink()
+                                    cleaned_size += stat.st_size
+                            except:
+                                pass
+                    
+                    self._log("✅ Очищены старые временные файлы")
+            except Exception as e:
+                self._log(f"⚠️ Ошибка очистки temp: {e}")
+            
+            # Форматирование размера
+            if cleaned_size > 1024**3:  # GB
+                size_str = f"{cleaned_size / 1024**3:.1f} GB"
+            elif cleaned_size > 1024**2:  # MB
+                size_str = f"{cleaned_size / 1024**2:.1f} MB"
+            elif cleaned_size > 1024:  # KB
+                size_str = f"{cleaned_size / 1024:.1f} KB"
+            else:
+                size_str = f"{cleaned_size} байт"
+            
+            self._log(f"🧹 Очистка завершена! Освобождено: {size_str}")
+            messagebox.showinfo("Очистка кэша", f"Кэш очищен!\nОсвобождено: {size_str}")
+            
+        except Exception as e:
+            self._log(f"❌ Ошибка очистки кэша: {e}")
+            messagebox.showerror("Ошибка", f"Не удалось очистить кэш:\n{e}")
+    
     def run(self):
         """Запуск приложения"""
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("green.Horizontal.TProgressbar",
-                       background='#27ae60', troughcolor='#ecf0f1')
+        # Установка DPI awareness для Windows
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except:
+            pass
         
+        # Центрирование окна с новыми размерами
         self.root.update_idletasks()
-        w, h = 900, 600
+        w, h = 1100, 700
         x = (self.root.winfo_screenwidth() // 2) - (w // 2)
         y = (self.root.winfo_screenheight() // 2) - (h // 2)
         self.root.geometry(f'{w}x{h}+{x}+{y}')

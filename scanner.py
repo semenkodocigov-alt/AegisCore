@@ -7,7 +7,7 @@ from hash_utils import calculate_all
 class FileScanner:
     def __init__(self):
         self.sig_db = SignatureDatabase()
-        self.analyzer = FileAnalyzer()
+        self.analyzer = FileAnalyzer(self.sig_db)
     
     def scan_file(self, filepath):
         """
@@ -35,10 +35,13 @@ class FileScanner:
             hashes = calculate_all(filepath)
             
             # Проверяем сигнатуры
+            filename = os.path.basename(filepath)
             sig_match = self.sig_db.check_hash(
                 md5=hashes['md5'],
                 sha1=hashes['sha1'],
-                sha256=hashes['sha256']
+                sha256=hashes['sha256'],
+                filename=filename,
+                filepath=filepath
             )
             
             if sig_match:
