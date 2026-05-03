@@ -48,12 +48,12 @@ class FileScanner:
                 return result
             
             # Эвристический анализ
-            status, threats = self.analyzer.analyze(filepath)
+            status, threats, score = self.analyzer.analyze(filepath)
             
             if status != 'clean':
                 result['is_threat'] = True
                 result['threat_name'] = 'Подозрительный файл'
-                result['details'] = threats
+                result['details'] = threats + [f"Оценка угрозы: {score}"]
         
         except Exception as e:
             result['details'].append(f"Ошибка: {str(e)}")

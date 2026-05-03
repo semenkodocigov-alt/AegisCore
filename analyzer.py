@@ -72,9 +72,10 @@ class FileAnalyzer:
     def analyze(self, filepath):
         """
         Анализ файла
-        Возвращает: (статус, список_угроз)
+        Возвращает: (статус, список_угроз, балл)
         """
         threats = []
+        score = 0
         
         try:
             filename = os.path.basename(filepath).lower()
@@ -85,6 +86,7 @@ class FileAnalyzer:
             for name in SUSPICIOUS_NAMES:
                 if name in filename:
                     threats.append(f"Подозрительное имя файла: '{name}'")
+                    score += 1
                     break
             
             # 2. Проверка двойного расширения
@@ -92,12 +94,14 @@ class FileAnalyzer:
                 parts = filename.split('.')
                 if parts[-1] in ['exe', 'scr', 'bat', 'ps1', 'vbs', 'js', 'jse', 'wsf', 'wsh']:
                     threats.append("Двойное расширение (маскировка)")
+                    score += 2
             
             # 3. Проверка подозрительного расширения в подозрительном пути
             if ext in SUSPICIOUS_EXTENSIONS:
                 for path_pattern in SUSPICIOUS_PATHS:
                     if path_pattern in filepath_lower:
                         threats.append(f"Подозрительное сочетание: {ext} в {path_pattern}")
+                        score += 2
                         break
             
             # 4. Проверка размера файла (слишком маленький или слишком большой)
@@ -105,49 +109,56 @@ class FileAnalyzer:
                 size = os.path.getsize(filepath)
                 if size < 100:  # Слишком маленький файл
                     threats.append("Необычно маленький размер файла")
+                    score += 1
                 elif size > 50 * 1024 * 1024:  # > 50MB
                     threats.append("Необычно большой размер файла")
+                    score += 1
             except:
                 pass
             
             # 5. Анализ PE файлов
             if ext in ['.exe', '.dll', '.sys', '.scr', '.ocx', '.drv']:
-                pe_threats = self._analyze_pe(filepath)
+                pe_threats, pe_score = self._analyze_pe(filepath)
                 threats.extend(pe_threats)
+                score += pe_score
             
             # 6. Анализ скриптов
             if ext in ['.bat', '.cmd', '.vbs', '.js', '.jse', '.wsf', '.wsh', '.ps1', '.psm1', '.psd1']:
-                script_threats = self._analyze_script(filepath)
+                script_threats, script_score = self._analyze_script(filepath)
                 threats.extend(script_threats)
+                score += script_score
             
             # 7. Проверка на скрытые файлы
             if filename.startswith('.') or filename.startswith('$'):
                 threats.append("Скрытый файл")
+                score += 1
             
             # 8. Проверка на системные имена
             system_names = ['svchost', 'explorer', 'system', 'winlogon', 'csrss', 'smss', 'services']
             if any(name in filename for name in system_names) and ext in ['.exe', '.dll']:
                 threats.append("Имя системного процесса")
+                score += 1
         
         except Exception as e:
             threats.append(f"Ошибка анализа: {str(e)}")
+            score += 1
         
         # Определяем статус
-        if len(threats) > 0:
-            return 'suspicious', threats
-        
-        return 'clean', []
+        if score >= 4 or (score >= 2 and len(threats) > 1):
+            return 'suspicious', threats, score
+        return 'clean', [], score
     
     def _analyze_pe(self, filepath):
         """Анализ PE файла"""
         threats = []
+        score = 0
         
         try:
             with open(filepath, 'rb') as f:
                 # Проверяем заголовок
                 header = f.read(2)
                 if header != b'MZ':
-                    return threats
+                    return threats, score
                 
                 # Читаем для анализа
                 f.seek(0)
@@ -161,26 +172,37 @@ class FileAnalyzer:
                 
                 if len(found_apis) >= 5:
                     threats.append(f"Много подозрительных API ({len(found_apis)})")
+                    score += 3
                 elif len(found_apis) >= 3:
                     threats.append(f"Подозрительные API: {', '.join(found_apis[:3])}")
+                    score += 2
+                elif len(found_apis) > 0:
+                    threats.append(f"Найдено подозрительных API: {', '.join(found_apis[:2])}")
+                    score += 1
                 
                 # Энтропия
                 entropy = self._calculate_entropy(content[:10000])
                 if entropy > 7.5:
                     threats.append(f"Высокая энтропия ({entropy:.1f}/8.0)")
+                    score += 2
+                elif entropy > 7.0:
+                    threats.append(f"Повышенная энтропия ({entropy:.1f}/8.0)")
+                    score += 1
                 
                 # UPX упаковка
                 if b'UPX' in content[:1000]:
                     threats.append("UPX упаковка")
+                    score += 1
         
         except:
             pass
         
-        return threats
+        return threats, score
     
     def _analyze_script(self, filepath):
         """Анализ скриптовых файлов"""
         threats = []
+        score = 0
         
         try:
             with open(filepath, 'rb') as f:
@@ -212,18 +234,24 @@ class FileAnalyzer:
             
             if len(found_commands) >= 3:
                 threats.append(f"Много подозрительных команд ({len(found_commands)})")
-            elif len(found_commands) >= 1:
-                threats.append(f"Подозрительные команды: {', '.join(found_commands[:3])}")
+                score += 2
+            elif len(found_commands) == 2:
+                threats.append(f"Подозрительные команды: {', '.join(found_commands[:2])}")
+                score += 1
+            elif len(found_commands) == 1:
+                # Один рискованный оператор сам по себе не всегда угроза
+                threats.append(f"Подозрительная команда: {found_commands[0]}")
+                score += 0
             
             # Проверка на обфускацию
-            if text_content.count(' ') < len(text_content) * 0.1:  # Мало пробелов
+            if len(text_content) > 0 and text_content.count(' ') < len(text_content) * 0.08:
                 threats.append("Возможная обфускация (мало пробелов)")
+                score += 1
             
             # Проверка на base64
             import base64
             import binascii
             try:
-                # Ищем потенциальные base64 строки
                 words = text_content.split()
                 for word in words:
                     if len(word) > 20 and len(word) % 4 == 0:
@@ -231,6 +259,7 @@ class FileAnalyzer:
                             decoded = base64.b64decode(word)
                             if len(decoded) > 10:
                                 threats.append("Возможный base64 encoded контент")
+                                score += 1
                                 break
                         except (binascii.Error, ValueError):
                             pass
@@ -240,17 +269,20 @@ class FileAnalyzer:
             # Проверка на URL
             if 'http://' in text_content or 'https://' in text_content or 'ftp://' in text_content:
                 threats.append("Содержит URL (потенциальная загрузка)")
+                score += 1
             
             # Проверка на IP адреса
             import re
             ip_pattern = r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
             if re.search(ip_pattern, text_content):
                 threats.append("Содержит IP адреса")
+                score += 1
         
         except Exception as e:
             threats.append(f"Ошибка анализа скрипта: {str(e)}")
+            score += 1
         
-        return threats
+        return threats, score
     
     def _calculate_entropy(self, data):
         """Расчет энтропии"""

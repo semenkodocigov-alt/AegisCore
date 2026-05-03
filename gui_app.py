@@ -65,6 +65,11 @@ class AegisApp:
         # USB мониторинг
         self.usb_monitoring = False
         self.last_usb_devices = set()
+
+        # Плавный прогресс
+        self.current_progress = 0
+        self.target_progress = 0
+        self.progress_animation_id = None
         
         self._build_ui()
         self._welcome()
@@ -279,11 +284,30 @@ class AegisApp:
     def _update_progress(self, val, text=""):
         """Обновление прогресса"""
         try:
-            self.progress_bar['value'] = val
+            self.target_progress = max(0, min(100, val))
             if text:
                 self.progress_label.config(text=text)
+            if self.progress_animation_id:
+                self.root.after_cancel(self.progress_animation_id)
+                self.progress_animation_id = None
+            self._animate_progress()
         except:
             pass
+    
+    def _animate_progress(self):
+        """Плавное обновление прогресс-бара"""
+        if self.current_progress == self.target_progress:
+            self.progress_animation_id = None
+            return
+        
+        step = max(1, min(5, abs(self.target_progress - self.current_progress)))
+        if self.current_progress < self.target_progress:
+            self.current_progress += step
+        else:
+            self.current_progress -= step
+        
+        self.progress_bar['value'] = self.current_progress
+        self.progress_animation_id = self.root.after(25, self._animate_progress)
     
     def _welcome(self):
         """Приветствие"""
@@ -350,25 +374,24 @@ class AegisApp:
         self._draw_animation_idle()
     
     def _play_sound(self, sound_type="threat"):
-        """Воспроизведение звука"""
+        """Воспроизведение системного звука Windows"""
         try:
             if sound_type == "threat":
-                # Звук угрозы - низкий тон
-                winsound.Beep(800, 300)
-                time.sleep(0.1)
-                winsound.Beep(600, 300)
+                winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
             elif sound_type == "scan_complete":
-                # Звук завершения - высокий тон
-                winsound.Beep(1000, 200)
-                time.sleep(0.1)
-                winsound.Beep(1200, 200)
+                winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
             elif sound_type == "usb_detected":
-                # Звук USB подключения
-                winsound.Beep(1500, 150)
-                time.sleep(0.1)
-                winsound.Beep(1500, 150)
-        except:
-            pass
+                winsound.PlaySound("SystemQuestion", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        except Exception:
+            try:
+                if sound_type == "threat":
+                    winsound.MessageBeep(winsound.MB_ICONHAND)
+                elif sound_type == "scan_complete":
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                elif sound_type == "usb_detected":
+                    winsound.MessageBeep(winsound.MB_ICONQUESTION)
+            except Exception:
+                pass
     
     def _get_usb_devices(self):
         """Получение списка USB устройств"""
