@@ -3,8 +3,17 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import threading
 import os
+import time
+import winsound
+import math
 from datetime import datetime
 from pathlib import Path
+
+try:
+    import wmi
+    WMI_AVAILABLE = True
+except ImportError:
+    WMI_AVAILABLE = False
 
 from scanner import FileScanner
 from quarantine import QuarantineManager
@@ -47,6 +56,15 @@ class AegisApp:
         # Контакты
         self.author_email = "Kodochigov07@list.ru"
         self.version = "2.0.0"
+        
+        # Анимация сканирования
+        self.animation_angle = 0
+        self.animation_running = False
+        self.animation_canvas = None
+        
+        # USB мониторинг
+        self.usb_monitoring = False
+        self.last_usb_devices = set()
         
         self._build_ui()
         self._welcome()
@@ -97,6 +115,11 @@ class AegisApp:
                 font=("Segoe UI", 9), bg=self.colors['surface'],
                 fg=self.colors['text_secondary']).pack(anchor='w')
         
+        # Анимация сканирования
+        self.animation_canvas = tk.Canvas(left, width=100, height=100, bg=self.colors['bg'], highlightthickness=0)
+        self.animation_canvas.pack(pady=10)
+        self._draw_animation_idle()
+        
         # Кнопки
         scans_frame = tk.Frame(left, bg=self.colors['bg'])
         scans_frame.pack(fill=tk.X)
@@ -127,6 +150,27 @@ class AegisApp:
             tk.Button(cinner, text="▶", command=cmd, font=("Segoe UI", 10, "bold"),
                      bg=color, fg='white', bd=0, padx=15, pady=4,
                      cursor='hand2').pack(side=tk.RIGHT)
+        
+        # USB мониторинг
+        usb_frame = tk.Frame(left, bg=self.colors['bg'])
+        usb_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        usb_card = tk.Frame(left, bg=self.colors['surface'])
+        usb_card.pack(fill=tk.X, pady=2)
+        
+        usb_inner = tk.Frame(usb_card, bg=self.colors['surface'])
+        usb_inner.pack(fill=tk.X, padx=20, pady=10)
+        
+        tk.Label(usb_inner, text="🔌 USB Защита", font=("Segoe UI", 11, "bold"),
+                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT)
+        
+        tk.Label(usb_inner, text="Автопроверка USB", font=("Segoe UI", 8),
+                bg=self.colors['surface'], fg=self.colors['text_secondary']).pack(side=tk.LEFT, padx=10)
+        
+        self.usb_button = tk.Button(usb_inner, text="ВКЛ", command=self._toggle_usb_monitoring,
+                                   font=("Segoe UI", 10, "bold"), bg=self.colors['red'],
+                                   fg='white', bd=0, padx=15, pady=4, cursor='hand2')
+        self.usb_button.pack(side=tk.RIGHT)
         
         # Правая панель - лог + список угроз
         right = tk.Frame(content, bg=self.colors['surface'], width=350)
@@ -257,6 +301,150 @@ class AegisApp:
         y = event.y_root - self._drag_y
         self.root.geometry(f"+{x}+{y}")
     
+    def _draw_animation_idle(self):
+        """Рисование статичной иконки"""
+        if not self.animation_canvas:
+            return
+        self.animation_canvas.delete("all")
+        # Рисуем щит
+        self.animation_canvas.create_oval(20, 20, 80, 80, fill=self.colors['blue'], outline=self.colors['blue'])
+        self.animation_canvas.create_polygon(50, 15, 35, 35, 65, 35, fill=self.colors['surface'], outline=self.colors['surface'])
+    
+    def _draw_animation_scanning(self):
+        """Рисование вращающейся иконки"""
+        if not self.animation_canvas or not self.animation_running:
+            return
+        self.animation_canvas.delete("all")
+        
+        # Вращающиеся сегменты
+        center_x, center_y = 50, 50
+        radius = 30
+        
+        for i in range(8):
+            angle = math.radians(self.animation_angle + i * 45)
+            x1 = center_x + radius * math.cos(angle)
+            y1 = center_y + radius * math.sin(angle)
+            x2 = center_x + (radius - 10) * math.cos(angle)
+            y2 = center_y + (radius - 10) * math.sin(angle)
+            
+            color = self.colors['green'] if i < 4 else self.colors['blue']
+            self.animation_canvas.create_line(x1, y1, x2, y2, fill=color, width=3)
+        
+        # Центральный щит
+        self.animation_canvas.create_oval(35, 35, 65, 65, fill=self.colors['surface'], outline=self.colors['blue'])
+        self.animation_canvas.create_polygon(50, 30, 42, 40, 58, 40, fill=self.colors['blue'], outline=self.colors['blue'])
+        
+        self.animation_angle = (self.animation_angle + 10) % 360
+        
+        if self.animation_running:
+            self.root.after(50, self._draw_animation_scanning)
+    
+    def _start_animation(self):
+        """Запуск анимации"""
+        self.animation_running = True
+        self._draw_animation_scanning()
+    
+    def _stop_animation(self):
+        """Остановка анимации"""
+        self.animation_running = False
+        self._draw_animation_idle()
+    
+    def _play_sound(self, sound_type="threat"):
+        """Воспроизведение звука"""
+        try:
+            if sound_type == "threat":
+                # Звук угрозы - низкий тон
+                winsound.Beep(800, 300)
+                time.sleep(0.1)
+                winsound.Beep(600, 300)
+            elif sound_type == "scan_complete":
+                # Звук завершения - высокий тон
+                winsound.Beep(1000, 200)
+                time.sleep(0.1)
+                winsound.Beep(1200, 200)
+            elif sound_type == "usb_detected":
+                # Звук USB подключения
+                winsound.Beep(1500, 150)
+                time.sleep(0.1)
+                winsound.Beep(1500, 150)
+        except:
+            pass
+    
+    def _get_usb_devices(self):
+        """Получение списка USB устройств"""
+        if not WMI_AVAILABLE:
+            return set()
+        
+        try:
+            c = wmi.WMI()
+            usb_devices = set()
+            for drive in c.Win32_LogicalDisk():
+                if drive.DriveType == 2:  # Removable drive
+                    usb_devices.add(drive.DeviceID)
+            return usb_devices
+        except:
+            return set()
+    
+    def _check_usb_devices(self):
+        """Проверка на новые USB устройства"""
+        if not self.usb_monitoring:
+            return
+        
+        current_devices = self._get_usb_devices()
+        new_devices = current_devices - self.last_usb_devices
+        
+        if new_devices:
+            for device in new_devices:
+                self._log(f"🔌 USB устройство подключено: {device}")
+                self._play_sound("usb_detected")
+                
+                # Автоматическая проверка USB
+                self._scan_usb_device(device)
+        
+        self.last_usb_devices = current_devices
+        
+        # Повторная проверка через 2 секунды
+        if self.usb_monitoring:
+            self.root.after(2000, self._check_usb_devices)
+    
+    def _scan_usb_device(self, device_id):
+        """Сканирование USB устройства"""
+        try:
+            device_path = f"{device_id}\\"
+            if os.path.exists(device_path):
+                self._log(f"🔍 Автоматическая проверка USB: {device_path}")
+                
+                # Быстрая проверка USB
+                scan_data = self.scanner.scan_directory(device_path, 2, 200)
+                
+                if scan_data['results']:
+                    self._log(f"⚠️ Найдены угрозы на USB: {len(scan_data['results'])}")
+                    for r in scan_data['results']:
+                        self._log(f"   └─ {r['filepath']} — {r['threat_name']}")
+                        self._add_threat_file(r['filepath'], r['threat_name'])
+                        self._play_sound("threat")
+                else:
+                    self._log("✅ USB устройство чистое")
+        except Exception as e:
+            self._log(f"❌ Ошибка проверки USB: {e}")
+    
+    def _toggle_usb_monitoring(self):
+        """Включение/выключение мониторинга USB"""
+        if not WMI_AVAILABLE:
+            messagebox.showerror("Ошибка", "WMI не доступен. Установите pywin32 для мониторинга USB.")
+            return
+        
+        self.usb_monitoring = not self.usb_monitoring
+        
+        if self.usb_monitoring:
+            self.last_usb_devices = self._get_usb_devices()
+            self._check_usb_devices()
+            self.usb_button.config(text="ВЫКЛ", bg=self.colors['green'])
+            self._log("🔌 Мониторинг USB включен")
+        else:
+            self.usb_button.config(text="ВКЛ", bg=self.colors['red'])
+            self._log("🔌 Мониторинг USB выключен")
+    
     def _quick_scan(self):
         """Быстрая проверка"""
         if self.is_scanning:
@@ -267,6 +455,7 @@ class AegisApp:
         self.files_scanned = 0
         self.threats_found = 0
         self._clear_threats_list()
+        self._start_animation()
         
         self._log("=" * 50)
         self._log("⚡ БЫСТРАЯ ПРОВЕРКА")
@@ -289,6 +478,7 @@ class AegisApp:
         self.files_scanned = 0
         self.threats_found = 0
         self._clear_threats_list()
+        self._start_animation()
         
         self._log("=" * 50)
         self._log("🔍 ПОЛНАЯ ПРОВЕРКА")
@@ -320,6 +510,7 @@ class AegisApp:
         if result['is_threat']:
             self._log(f"⚠️ УГРОЗА: {result['threat_name']} в {filepath}")
             self._add_threat_file(filepath, result['threat_name'])
+            self._play_sound("threat")
             for d in result['details']:
                 self._log(f"   └─ {d}")
             
@@ -350,11 +541,14 @@ class AegisApp:
                 for r in scan_data['results']:
                     self._log(f"⚠️ Угроза: {r['filepath']} — {r['threat_name']}")
                     self._add_threat_file(r['filepath'], r['threat_name'])
+                    self._play_sound("threat")
                 
                 progress = ((i + 1) / total) * 100
                 self._update_progress(progress, f"Сканирование...")
             
             self._update_progress(100, "Завершено")
+            self._stop_animation()
+            self._play_sound("scan_complete")
             self._log("=" * 50)
             self._log(f"✅ {name} проверка завершена")
             self._log(f"📊 Файлов: {self.files_scanned}")
@@ -368,6 +562,7 @@ class AegisApp:
             self._log(f"❌ Ошибка: {e}")
         finally:
             self.is_scanning = False
+            self._stop_animation()
     
     def run(self):
         """Запуск приложения"""

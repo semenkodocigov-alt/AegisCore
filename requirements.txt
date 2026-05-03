@@ -1,0 +1,9 @@
+tkinter
+winsound
+wmi
+math
+os
+pathlib
+datetime
+threading
+time
