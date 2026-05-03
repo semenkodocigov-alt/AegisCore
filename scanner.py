@@ -60,10 +60,10 @@ class FileScanner:
         
         return result
     
-    def scan_directory(self, path, max_depth=2, max_files=500):
+    def scan_directory(self, path, max_depth=2, max_files=500, callback=None):
         """
         Сканирование папки
-        Возвращает: список результатов
+        Возвращает: словарь с результатом и количеством просканированных файлов
         """
         results = []
         files_scanned = 0
@@ -89,9 +89,18 @@ class FileScanner:
                     if result['is_threat']:
                         results.append(result)
                     
+                    if callable(callback):
+                        try:
+                            callback(filepath, result['is_threat'])
+                        except Exception:
+                            pass
+                    
                     files_scanned += 1
         
         except Exception as e:
             print(f"Ошибка сканирования: {e}")
         
-        return results
+        return {
+            'results': results,
+            'files_scanned': files_scanned
+        }

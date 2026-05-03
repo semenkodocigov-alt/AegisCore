@@ -128,13 +128,37 @@ class AegisApp:
                      bg=color, fg='white', bd=0, padx=15, pady=4,
                      cursor='hand2').pack(side=tk.RIGHT)
         
-        # Правая панель - лог
+        # Правая панель - лог + список угроз
         right = tk.Frame(content, bg=self.colors['surface'], width=350)
         right.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(7, 0))
         right.pack_propagate(False)
         
+        threats_frame = tk.Frame(right, bg=self.colors['surface'])
+        threats_frame.pack(fill=tk.X, padx=15, pady=(10, 0))
+        
+        tk.Label(threats_frame, text="🔴 Обнаруженные файлы", font=("Segoe UI", 11, "bold"),
+                bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
+        
+        list_frame = tk.Frame(threats_frame, bg=self.colors['surface'])
+        list_frame.pack(fill=tk.BOTH, expand=False, pady=(5, 8))
+        
+        self.threats_listbox = tk.Listbox(
+            list_frame,
+            height=6,
+            bg='#f7f9fc',
+            fg=self.colors['text'],
+            selectbackground=self.colors['blue'],
+            bd=1,
+            relief='solid'
+        )
+        self.threats_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        threats_scroll = tk.Scrollbar(list_frame, command=self.threats_listbox.yview)
+        threats_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.threats_listbox.config(yscrollcommand=threats_scroll.set)
+        
         log_header = tk.Frame(right, bg=self.colors['surface'])
-        log_header.pack(fill=tk.X, padx=15, pady=(10, 5))
+        log_header.pack(fill=tk.X, padx=15, pady=(0, 5))
         
         tk.Label(log_header, text="📋 Журнал", font=("Segoe UI", 11, "bold"),
                 bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT)
@@ -186,6 +210,21 @@ class AegisApp:
         except:
             pass
     
+    def _add_threat_file(self, filepath, threat_name):
+        """Добавить зараженный файл в список"""
+        try:
+            self.threats_listbox.insert(tk.END, f"{filepath} — {threat_name}")
+            self.threats_listbox.see(tk.END)
+        except:
+            pass
+    
+    def _clear_threats_list(self):
+        """Очистка списка обнаруженных угроз"""
+        try:
+            self.threats_listbox.delete(0, tk.END)
+        except:
+            pass
+    
     def _clear_log(self):
         """Очистка лога"""
         try:
@@ -227,6 +266,7 @@ class AegisApp:
         self.is_scanning = True
         self.files_scanned = 0
         self.threats_found = 0
+        self._clear_threats_list()
         
         self._log("=" * 50)
         self._log("⚡ БЫСТРАЯ ПРОВЕРКА")
@@ -248,11 +288,15 @@ class AegisApp:
         self.is_scanning = True
         self.files_scanned = 0
         self.threats_found = 0
+        self._clear_threats_list()
         
         self._log("=" * 50)
         self._log("🔍 ПОЛНАЯ ПРОВЕРКА")
         
         areas = []
+        temp_path = os.environ.get('TEMP') or os.environ.get('TMP')
+        if temp_path and os.path.exists(temp_path):
+            areas.append((temp_path, 2, 300))
         if os.path.exists("C:\\Windows\\System32"):
             areas.append(("C:\\Windows\\System32", 2, 300))
         if os.path.exists("C:\\Program Files"):
@@ -268,12 +312,14 @@ class AegisApp:
         if not filepath:
             return
         
-        self._log(f"🔍 Проверка: {os.path.basename(filepath)}")
+        self._clear_threats_list()
+        self._log(f"🔍 Проверка: {filepath}")
         
         result = self.scanner.scan_file(filepath)
         
         if result['is_threat']:
-            self._log(f"⚠️ УГРОЗА: {result['threat_name']}")
+            self._log(f"⚠️ УГРОЗА: {result['threat_name']} в {filepath}")
+            self._add_threat_file(filepath, result['threat_name'])
             for d in result['details']:
                 self._log(f"   └─ {d}")
             
@@ -297,12 +343,13 @@ class AegisApp:
                 
                 self._log(f"📂 {os.path.basename(path)}")
                 
-                results = self.scanner.scan_directory(path, depth, max_f)
-                self.files_scanned += max_f
-                self.threats_found += len(results)
+                scan_data = self.scanner.scan_directory(path, depth, max_f)
+                self.files_scanned += scan_data['files_scanned']
+                self.threats_found += len(scan_data['results'])
                 
-                for r in results:
-                    self._log(f"⚠️ {os.path.basename(r['filepath'])}")
+                for r in scan_data['results']:
+                    self._log(f"⚠️ Угроза: {r['filepath']} — {r['threat_name']}")
+                    self._add_threat_file(r['filepath'], r['threat_name'])
                 
                 progress = ((i + 1) / total) * 100
                 self._update_progress(progress, f"Сканирование...")
