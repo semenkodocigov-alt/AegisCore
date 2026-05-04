@@ -57,16 +57,14 @@ SUSPICIOUS_NAMES = [
 SUSPICIOUS_EXTENSIONS = [
     '.exe', '.scr', '.pif', '.com', '.bat', '.cmd', '.vbs',
     '.js', '.jse', '.wsf', '.wsh', '.ps1', '.psm1', '.psd1',
-    '.dll', '.ocx', '.sys', '.drv', '.vxd', '.386', '.vxd',
-    '.bin', '.dat', '.tmp', '.log', '.ini', '.cfg', '.conf'
+    '.dll', '.ocx', '.sys', '.drv', '.vxd', '.386', '.bin'
 ]
 
 # Подозрительные пути
 SUSPICIOUS_PATHS = [
     '\\temp\\', '\\tmp\\', '\\appdata\\local\\temp',
     '\\windows\\temp\\', '\\system32\\', '\\syswow64\\',
-    '\\programdata\\', '\\users\\public\\', '\\downloads\\',
-    '\\desktop\\', '\\documents\\', '\\pictures\\', '\\videos\\'
+    '\\programdata\\'
 ]
 
 class FileAnalyzer:
@@ -96,11 +94,6 @@ class FileAnalyzer:
                     threats.append(f"Подозрительное имя файла: '{name}'")
                     score += 1
                     break
-            for name in SUSPICIOUS_NAMES:
-                if name in filename:
-                    threats.append(f"Подозрительное имя файла: '{name}'")
-                    score += 1
-                    break
             
             # 2. Проверка двойного расширения
             if filename.count('.') > 1:
@@ -114,17 +107,17 @@ class FileAnalyzer:
                 for path_pattern in SUSPICIOUS_PATHS:
                     if path_pattern in filepath_lower:
                         threats.append(f"Подозрительное сочетание: {ext} в {path_pattern}")
-                        score += 2
+                        score += 1
                         break
             
-            # 4. Проверка размера файла (слишком маленький или слишком большой)
+            # 4. Проверка размера файла для исполняемых и скриптовых файлов
             try:
                 size = os.path.getsize(filepath)
-                if size < 100:  # Слишком маленький файл
-                    threats.append("Необычно маленький размер файла")
+                if size < 50 and ext in ['.exe', '.dll', '.sys', '.scr', '.bat', '.cmd', '.vbs', '.js', '.jse', '.wsf', '.wsh', '.ps1', '.psm1', '.psd1']:
+                    threats.append("Необычно маленький размер исполняемого файла")
                     score += 1
-                elif size > 50 * 1024 * 1024:  # > 50MB
-                    threats.append("Необычно большой размер файла")
+                elif size > 50 * 1024 * 1024 and ext in ['.exe', '.dll', '.sys', '.scr']:
+                    threats.append("Необычно большой размер исполняемого файла")
                     score += 1
             except:
                 pass
@@ -251,10 +244,6 @@ class FileAnalyzer:
             elif len(found_commands) == 2:
                 threats.append(f"Подозрительные команды: {', '.join(found_commands[:2])}")
                 score += 1
-            elif len(found_commands) == 1:
-                # Один рискованный оператор сам по себе не всегда угроза
-                threats.append(f"Подозрительная команда: {found_commands[0]}")
-                score += 0
             
             # Проверка на обфускацию
             if len(text_content) > 0 and text_content.count(' ') < len(text_content) * 0.08:

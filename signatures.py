@@ -56,13 +56,15 @@ class SignatureDatabase:
     def _load_whitelist(self):
         """Белый список легитимного ПО"""
         return {
-            # Cloudflare
+            # Cloudflare and related services should not be считаться угрозой
             "cloudflare": ["cloudflare", "warp", "cf"],
             # VPN сервисы
             "vpn": ["expressvpn", "nordvpn", "protonvpn", "mullvad", "surfshark",
                    "private internet access", "pia", "tunnelbear", "hotspot shield",
                    "cyberghost", "vyprvpn", "airvpn", "ivpn", "mullvad",
                    "openvpn", "wireguard", "ikev2", "pptp", "l2tp"],
+            # Прокси и безопасные сетевые сервисы
+            "network": ["proxy", "socks", "shadowsocks", "v2ray", "trojan", "clash"],
             # Легитимное ПО
             "system": ["windows", "microsoft", "google", "apple", "mozilla",
                       "chrome", "firefox", "edge", "opera", "safari",
@@ -99,21 +101,11 @@ class SignatureDatabase:
         filename_lower = filename.lower()
         filepath_lower = filepath.lower()
 
-        # Проверка Cloudflare
-        for cf_name in self.whitelist["cloudflare"]:
-            if cf_name in filename_lower or cf_name in filepath_lower:
-                return True
-
-        # Проверка VPN
-        for vpn_name in self.whitelist["vpn"]:
-            if vpn_name in filename_lower or vpn_name in filepath_lower:
-                return True
-
-        # Проверка системного ПО
-        for sys_name in self.whitelist["system"]:
-            if sys_name in filename_lower:
-                return True
-
+        # Проверка белого списка по любой категории
+        for category, patterns in self.whitelist.items():
+            for name in patterns:
+                if name in filename_lower or name in filepath_lower:
+                    return True
         return False
 
     def check_hash(self, md5=None, sha1=None, sha256=None, filename=None, filepath=None):

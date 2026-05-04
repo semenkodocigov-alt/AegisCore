@@ -28,7 +28,17 @@ class AegisApp:
         self.root.title("Aegis Core - Антивирусная защита")
         self.root.geometry("1100x700")  # Увеличено для лучшего вида
         self.root.configure(bg='#f8fafc')
+        
+        # Центрирование окна
+        self.root.update_idletasks()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width - 1100) // 2
+        y = (screen_height - 700) // 2
+        self.root.geometry(f"1100x700+{x}+{y}")
+        
         self.root.overrideredirect(True)
+        self.root.bind('<Map>', self._on_map)
         
         # Включаем высокое DPI для сглаживания
         try:
@@ -98,6 +108,14 @@ class AegisApp:
         # USB мониторинг
         self.usb_monitoring = False
         self.last_usb_devices = set()
+        
+        # Активный список угроз (для контекстного меню)
+        self.active_threats_listbox = None
+        
+        # Виджеты для обновления тем
+        self.header = None
+        self.header_canvas = None
+
 
         # Плавный прогресс
         self.current_progress = 0
@@ -114,29 +132,38 @@ class AegisApp:
         main.pack(fill=tk.BOTH, expand=True)
         
         # Заголовок с градиентом
-        header = tk.Frame(main, bg=self.colors['header'], height=60)  # Увеличена высота
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-        header.bind("<Button-1>", self._start_move)
-        header.bind("<B1-Motion>", self._move_window)
+        self.header = tk.Frame(main, bg=self.colors['header'], height=60)  # Увеличена высота
+        self.header.pack(fill=tk.X)
+        self.header.pack_propagate(False)
+        self.header.bind("<Button-1>", self._start_move)
+        self.header.bind("<B1-Motion>", self._move_window)
         
         # Градиентный эффект для заголовка
-        header_canvas = tk.Canvas(header, height=60, bg=self.colors['header'], highlightthickness=0)
-        header_canvas.pack(fill=tk.X)
+        self.header_canvas = tk.Canvas(self.header, height=60, bg=self.colors['header'], highlightthickness=0)
+        self.header_canvas.pack(fill=tk.X)
+        self.header_canvas.bind("<Button-1>", self._start_move)
+        self.header_canvas.bind("<B1-Motion>", self._move_window)
         
         # Градиент от header к header_gradient
         for i in range(60):
             color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i/60)
-            header_canvas.create_line(0, i, 1100, i, fill=color)
+            self.header_canvas.create_line(0, i, 1100, i, fill=color)
         
         # Текст заголовка
-        header_canvas.create_text(30, 30, text="🛡️ AEGIS CORE", 
+        self.header_canvas.create_text(30, 30, text="🛡️ AEGIS CORE", 
                                 font=self.fonts['header'], fill='white', anchor='w')
-        header_canvas.create_text(30, 45, text="Антивирусная защита", 
+        self.header_canvas.create_text(30, 45, text="Антивирусная защита", 
                                 font=self.fonts['subtitle'], fill='#94a3b8', anchor='w')
         
+        # Кнопка минимизации
+        minimize_btn = tk.Button(self.header, text="▁", command=self._iconify_window,
+                                 font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
+                                 fg='white', bd=0, activebackground=self.colors['surface_hover'],
+                                 activeforeground='white', cursor='hand2', width=3, height=1)
+        minimize_btn.place(x=980, y=15)
+
         # Кнопка закрытия с hover эффектом
-        close_btn = tk.Button(header, text="✕", command=self.root.destroy,
+        close_btn = tk.Button(self.header, text="✕", command=self.root.destroy,
                             font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
                             fg='white', bd=0, activebackground=self.colors['red'],
                             activeforeground='white', cursor='hand2', width=3, height=1)
@@ -325,13 +352,12 @@ class AegisApp:
         cache_btn.bind("<Leave>", cache_leave)
         
         # Правая панель - лог + список угроз с современным дизайном
-        right = tk.Frame(content, bg=self.colors['surface'], width=400)  # Увеличена ширина
-        right.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
-        right.pack_propagate(False)
+        right = tk.Frame(content, bg=self.colors['surface'])
+        right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
         # Список угроз с улучшенным дизайном
         threats_frame = tk.Frame(right, bg=self.colors['surface'])
-        threats_frame.pack(fill=tk.X, padx=20, pady=(15, 0))
+        threats_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(15, 0))
         
         # Заголовок угроз
         threats_header = tk.Frame(threats_frame, bg=self.colors['surface'])
@@ -343,13 +369,16 @@ class AegisApp:
         tk.Label(threats_header, text="Обнаруженные угрозы", font=self.fonts['title'],
                 bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
         
-        tk.Button(threats_header, text="🗑️", command=self._clear_threats_list,
+        tk.Button(threats_header, text="Экспорт", command=self._export_threats_list,
+                 font=self.fonts['small'], bg=self.colors['surface'],
+                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
+        tk.Button(threats_header, text="Очистить", command=self._clear_threats_list,
                  font=self.fonts['small'], bg=self.colors['surface'],
                  fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
         
         # Список угроз
         list_frame = tk.Frame(threats_frame, bg=self.colors['surface'], relief='sunken', bd=1)
-        list_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 15))
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
         self.threats_listbox = tk.Listbox(
             list_frame,
@@ -362,14 +391,99 @@ class AegisApp:
             relief='flat',
             font=self.fonts['console']
         )
-        self.threats_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=2, pady=2)
+        self.threats_listbox.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=(2, 0))
         
         threats_scroll = tk.Scrollbar(list_frame, command=self.threats_listbox.yview,
-                                    bg=self.colors['border'], troughcolor=self.colors['surface'])
+                                     bg=self.colors['border'], troughcolor=self.colors['surface'])
         threats_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.threats_listbox.config(yscrollcommand=threats_scroll.set)
+        
+        threats_xscroll = tk.Scrollbar(list_frame, orient=tk.HORIZONTAL,
+                                      command=self.threats_listbox.xview,
+                                      bg=self.colors['border'], troughcolor=self.colors['surface'])
+        threats_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.threats_listbox.config(yscrollcommand=threats_scroll.set, xscrollcommand=threats_xscroll.set)
+        self.threats_listbox.bind("<Double-Button-1>", lambda e: self._open_selected_threat_location())
+        self.threats_listbox.bind("<Button-3>", self._show_threats_context_menu)
+        
+        self.threats_context_menu = tk.Menu(self.root, tearoff=0)
+        self.threats_context_menu.add_command(label="Открыть папку", command=self._open_selected_threat_location)
+        self.threats_context_menu.add_command(label="Копировать путь", command=self._copy_selected_threat_path)
+        
+        # Устанавливаем активный список по умолчанию
+        self.active_threats_listbox = self.threats_listbox
+        
+    def _show_threats_context_menu(self, event):
+        """Показать контекстное меню для списка угроз"""
+        # Определяем, в каком окне кликнули
+        if event.widget == self.threats_listbox:
+            self.active_threats_listbox = self.threats_listbox
+        else:
+            return
+        
+        try:
+            self.active_threats_listbox.selection_clear(0, tk.END)
+            self.active_threats_listbox.selection_set(self.active_threats_listbox.nearest(event.y))
+            self.threats_context_menu.post(event.x_root, event.y_root)
+        except:
+            pass
+
+        # Лог с улучшенным дизайном
         
         # Лог с улучшенным дизайном
+        """Показать контекстное меню для списка угроз"""
+        # Определяем, в каком окне кликнули
+        if event.widget == self.threats_listbox:
+            self.active_threats_listbox = self.threats_listbox
+        elif hasattr(self, 'threats_listbox_window') and event.widget == self.threats_listbox_window:
+            self.active_threats_listbox = self.threats_listbox_window
+        else:
+            return
+        
+        try:
+            self.active_threats_listbox.selection_clear(0, tk.END)
+            self.active_threats_listbox.selection_set(self.active_threats_listbox.nearest(event.y))
+            self.threats_context_menu.post(event.x_root, event.y_root)
+        except:
+            pass
+
+    def _open_selected_threat_location(self):
+        """Открыть папку с выбранной угрозой"""
+        path = self._get_selected_threat_path()
+        if not path:
+            return
+        try:
+            import os
+            os.startfile(os.path.dirname(path))
+        except Exception:
+            messagebox.showerror("Ошибка", "Не удалось открыть папку")
+
+    def _copy_selected_threat_path(self):
+        """Копировать путь выбранной угрозы"""
+        path = self._get_selected_threat_path()
+        if not path:
+            return
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(path)
+            messagebox.showinfo("Скопировано", "Путь скопирован в буфер обмена")
+        except Exception:
+            messagebox.showerror("Ошибка", "Не удалось скопировать путь")
+
+    def _get_selected_threat_path(self):
+        """Получить путь выбранной угрозы"""
+        try:
+            if hasattr(self, 'active_threats_listbox'):
+                selection = self.active_threats_listbox.curselection()
+                if selection:
+                    item = self.active_threats_listbox.get(selection[0])
+                    # Разделяем путь и имя угрозы
+                    if " — " in item:
+                        return item.split(" — ")[0].strip()
+            return None
+        except:
+            return None
+
         log_header = tk.Frame(right, bg=self.colors['surface'])
         log_header.pack(fill=tk.X, padx=20, pady=(0, 10))
         
@@ -442,27 +556,34 @@ class AegisApp:
     
     def _log(self, msg):
         """Логирование"""
-        try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            self.log_widget.insert(tk.END, f"[{timestamp}] {msg}\n")
-            self.log_widget.see(tk.END)
-        except:
-            pass
+        def action():
+            try:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.log_widget.insert(tk.END, f"[{timestamp}] {msg}\n")
+                self.log_widget.see(tk.END)
+            except Exception:
+                pass
+        self._safe_ui(action)
     
     def _add_threat_file(self, filepath, threat_name):
         """Добавить зараженный файл в список"""
-        try:
-            self.threats_listbox.insert(tk.END, f"{filepath} — {threat_name}")
-            self.threats_listbox.see(tk.END)
-        except:
-            pass
+        def action():
+            try:
+                entry = f"{filepath} — {threat_name}"
+                self.threats_listbox.insert(tk.END, entry)
+                self.threats_listbox.see(tk.END)
+            except Exception:
+                pass
+        self._safe_ui(action)
     
     def _clear_threats_list(self):
         """Очистка списка обнаруженных угроз"""
-        try:
-            self.threats_listbox.delete(0, tk.END)
-        except:
-            pass
+        def action():
+            try:
+                self.threats_listbox.delete(0, tk.END)
+            except Exception:
+                pass
+        self._safe_ui(action)
     
     def _clear_log(self):
         """Очистка лога"""
@@ -470,19 +591,63 @@ class AegisApp:
             self.log_widget.delete(1.0, tk.END)
         except:
             pass
-    
+
+    def _get_selected_threat_path(self):
+        try:
+            selection = self.threats_listbox.curselection()
+            if not selection:
+                return None
+            selected = self.threats_listbox.get(selection[0])
+            return selected.split(' — ', 1)[0]
+        except Exception:
+            return None
+
+
+
+    def _copy_selected_threat_path(self):
+        path = self._get_selected_threat_path()
+        if not path:
+            return
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(path)
+            messagebox.showinfo("Скопировано", "Путь скопирован в буфер обмена")
+        except Exception:
+            messagebox.showerror("Ошибка", "Не удалось скопировать путь")
+
+    def _export_threats_list(self):
+        try:
+            if self.threats_listbox.size() == 0:
+                messagebox.showinfo("Экспорт", "Список угроз пуст")
+                return
+            filename = filedialog.asksaveasfilename(
+                title="Сохранить список угроз",
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*")]
+            )
+            if not filename:
+                return
+            with open(filename, 'w', encoding='utf-8') as f:
+                for i in range(self.threats_listbox.size()):
+                    f.write(self.threats_listbox.get(i) + '\n')
+            messagebox.showinfo("Экспорт", f"Список угроз сохранён в:\n{filename}")
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить файл:\n{e}")
+
     def _update_progress(self, val, text=""):
         """Обновление прогресса"""
-        try:
-            self.target_progress = max(0, min(100, val))
-            if text:
-                self.progress_label.config(text=text)
-            if self.progress_animation_id:
-                self.root.after_cancel(self.progress_animation_id)
-                self.progress_animation_id = None
-            self._animate_progress()
-        except:
-            pass
+        def action():
+            try:
+                self.target_progress = max(0, min(100, val))
+                if text:
+                    self.progress_label.config(text=text)
+                if self.progress_animation_id:
+                    self.root.after_cancel(self.progress_animation_id)
+                    self.progress_animation_id = None
+                self._animate_progress()
+            except Exception:
+                pass
+        self._safe_ui(action)
     
     def _animate_progress(self):
         """Плавное обновление прогресс-бара"""
@@ -506,6 +671,15 @@ class AegisApp:
         self._log("✅ Готов к работе")
         self._log("=" * 50)
     
+    def _safe_ui(self, func, *args, **kwargs):
+        try:
+            if threading.current_thread() is threading.main_thread():
+                func(*args, **kwargs)
+            else:
+                self.root.after(0, lambda: func(*args, **kwargs))
+        except Exception:
+            pass
+    
     def _start_move(self, event):
         self._drag_x = event.x
         self._drag_y = event.y
@@ -514,7 +688,17 @@ class AegisApp:
         x = event.x_root - self._drag_x
         y = event.y_root - self._drag_y
         self.root.geometry(f"+{x}+{y}")
-    
+
+    def _iconify_window(self):
+        self.root.overrideredirect(False)
+        self.root.iconify()
+        # overrideredirect включится при <Map>
+
+    def _on_map(self, event=None):
+        self.root.overrideredirect(True)
+
+
+
     def _interpolate_color(self, color1, color2, factor):
         """Интерполяция между двумя цветами"""
         try:
