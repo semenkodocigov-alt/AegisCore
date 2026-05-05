@@ -1,11 +1,12 @@
 tkinter
-winsound
 wmi
-math
+requests>=2.25.0
+hashlib
 os
 pathlib
 datetime
 threading
 time
-requests
-hashlib
+math
+shutil
+json

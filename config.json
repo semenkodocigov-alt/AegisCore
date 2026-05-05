@@ -1,0 +1,15 @@
+{
+  "use_improved_signatures": true,
+  "enable_sound": true,
+  "enable_usb_monitoring": false,
+  "enable_autorun_scanning": true,
+  "backup_on_delete": true,
+  "secure_delete_passes": 3,
+  "cache_duration": 604800,
+  "max_threads": 4,
+  "max_file_size": 104857600,
+  "log_file": null,
+  "vt_api_key_env": "VIRUSTOTAL_API_KEY",
+  "quarantine_dir": "./quarantine",
+  "backup_dir": "./backups"
+}

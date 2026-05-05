@@ -32,8 +32,25 @@ class QuarantineManager:
     
     def count(self):
         """Количество файлов в карантине"""
-        return len(self.files)
+        return len(self.list_files())
     
     def list_files(self):
-        """Список файлов"""
-        return self.files
+        """Список файлов в карантине"""
+        try:
+            return [
+                os.path.join(self.quarantine_dir, filename)
+                for filename in os.listdir(self.quarantine_dir)
+                if os.path.isfile(os.path.join(self.quarantine_dir, filename))
+            ]
+        except Exception:
+            return []
+
+    def remove(self, quarantined_path):
+        """Удалить файл из карантина"""
+        try:
+            if os.path.exists(quarantined_path):
+                os.remove(quarantined_path)
+                return True
+        except Exception:
+            pass
+        return False

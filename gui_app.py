@@ -4,7 +4,6 @@ from tkinter import ttk, scrolledtext, messagebox, filedialog
 import threading
 import os
 import time
-import winsound
 import math
 import shutil
 from datetime import datetime
@@ -18,6 +17,8 @@ except ImportError:
 
 from scanner import FileScanner
 from quarantine import QuarantineManager
+from sound_manager import get_sound_manager
+from file_cleaner import FileCleaner
 
 
 class AegisApp:
@@ -115,6 +116,7 @@ class AegisApp:
         # Виджеты для обновления тем
         self.header = None
         self.header_canvas = None
+        self.footer_canvas = None
 
 
         # Плавный прогресс
@@ -143,31 +145,25 @@ class AegisApp:
         self.header_canvas.pack(fill=tk.X)
         self.header_canvas.bind("<Button-1>", self._start_move)
         self.header_canvas.bind("<B1-Motion>", self._move_window)
+        self.header_canvas.bind("<Configure>", self._update_header_text)
         
         # Градиент от header к header_gradient
-        for i in range(60):
-            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i/60)
-            self.header_canvas.create_line(0, i, 1100, i, fill=color)
-        
-        # Текст заголовка
-        self.header_canvas.create_text(30, 30, text="🛡️ AEGIS CORE", 
-                                font=self.fonts['header'], fill='white', anchor='w')
-        self.header_canvas.create_text(30, 45, text="Антивирусная защита", 
-                                font=self.fonts['subtitle'], fill='#94a3b8', anchor='w')
+        self._draw_header_gradient(self.header_canvas, 60)
+        self._update_header_text()
         
         # Кнопка минимизации
         minimize_btn = tk.Button(self.header, text="▁", command=self._iconify_window,
                                  font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
                                  fg='white', bd=0, activebackground=self.colors['surface_hover'],
                                  activeforeground='white', cursor='hand2', width=3, height=1)
-        minimize_btn.place(x=980, y=15)
+        minimize_btn.place(relx=0.88, rely=0.5, anchor='center')
 
         # Кнопка закрытия с hover эффектом
         close_btn = tk.Button(self.header, text="✕", command=self.root.destroy,
                             font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
                             fg='white', bd=0, activebackground=self.colors['red'],
                             activeforeground='white', cursor='hand2', width=3, height=1)
-        close_btn.place(x=1050, y=15)
+        close_btn.place(relx=0.95, rely=0.5, anchor='center')
         
         # Контент
         content = tk.Frame(main, bg=self.colors['bg'])
@@ -263,6 +259,21 @@ class AegisApp:
             btn.bind("<Enter>", on_enter)
             btn.bind("<Leave>", on_leave)
         
+        # Быстрые инструменты
+        tools_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+        tools_card.pack(fill=tk.X, pady=3)
+
+        tools_inner = tk.Frame(tools_card, bg=self.colors['surface'])
+        tools_inner.pack(fill=tk.X, padx=25, pady=15)
+
+        tk.Button(tools_inner, text="Просмотр карантина", command=self._show_quarantine_window,
+                  font=self.fonts['button'], bg=self.colors['purple'], fg='white', bd=0,
+                  padx=16, pady=8, cursor='hand2', relief='flat').pack(side=tk.LEFT, padx=(0, 8))
+
+        tk.Button(tools_inner, text="Проверить автозагрузку", command=self._scan_autorun_entries,
+                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
+                  padx=16, pady=8, cursor='hand2', relief='flat').pack(side=tk.LEFT)
+
         # USB мониторинг с современным дизайном
         usb_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
         usb_card.pack(fill=tk.X, pady=3)
@@ -372,10 +383,16 @@ class AegisApp:
         tk.Button(threats_header, text="Экспорт", command=self._export_threats_list,
                  font=self.fonts['small'], bg=self.colors['surface'],
                  fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
+        tk.Button(threats_header, text="Просмотр", command=self._show_suspicious_files_window,
+                 font=self.fonts['small'], bg=self.colors['surface'],
+                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
         tk.Button(threats_header, text="Очистить", command=self._clear_threats_list,
                  font=self.fonts['small'], bg=self.colors['surface'],
                  fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
-        
+
+        self.pie_canvas = tk.Canvas(threats_frame, height=160, bg=self.colors['surface'], highlightthickness=0)
+        self.pie_canvas.pack(fill=tk.X, pady=(0, 10), padx=20)
+
         # Список угроз
         list_frame = tk.Frame(threats_frame, bg=self.colors['surface'], relief='sunken', bd=1)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
@@ -405,41 +422,39 @@ class AegisApp:
         self.threats_listbox.config(yscrollcommand=threats_scroll.set, xscrollcommand=threats_xscroll.set)
         self.threats_listbox.bind("<Double-Button-1>", lambda e: self._open_selected_threat_location())
         self.threats_listbox.bind("<Button-3>", self._show_threats_context_menu)
+        self._draw_threat_pie_chart()
         
         self.threats_context_menu = tk.Menu(self.root, tearoff=0)
         self.threats_context_menu.add_command(label="Открыть папку", command=self._open_selected_threat_location)
         self.threats_context_menu.add_command(label="Копировать путь", command=self._copy_selected_threat_path)
+        self.threats_context_menu.add_command(label="В карантин", command=self._send_selected_to_quarantine)
+        self.threats_context_menu.add_command(label="Проверить подпись Microsoft", command=self._check_selected_signature)
         
         # Устанавливаем активный список по умолчанию
         self.active_threats_listbox = self.threats_listbox
+
+        # Футер с градиентом
+        footer = tk.Frame(main, bg=self.colors['header'], height=40)
+        footer.pack(fill=tk.X)
+        footer.pack_propagate(False)
+
+        footer_canvas = tk.Canvas(footer, height=40, bg=self.colors['header'], highlightthickness=0)
+        footer_canvas.pack(fill=tk.X)
+        footer_canvas.bind("<Configure>", self._update_footer_text)
+        self.footer_canvas = footer_canvas
+
+        self._draw_footer_gradient(footer_canvas, 40)
+        self._update_footer_text()
         
     def _show_threats_context_menu(self, event):
         """Показать контекстное меню для списка угроз"""
-        # Определяем, в каком окне кликнули
-        if event.widget == self.threats_listbox:
-            self.active_threats_listbox = self.threats_listbox
-        else:
-            return
-        
-        try:
-            self.active_threats_listbox.selection_clear(0, tk.END)
-            self.active_threats_listbox.selection_set(self.active_threats_listbox.nearest(event.y))
-            self.threats_context_menu.post(event.x_root, event.y_root)
-        except:
-            pass
-
-        # Лог с улучшенным дизайном
-        
-        # Лог с улучшенным дизайном
-        """Показать контекстное меню для списка угроз"""
-        # Определяем, в каком окне кликнули
         if event.widget == self.threats_listbox:
             self.active_threats_listbox = self.threats_listbox
         elif hasattr(self, 'threats_listbox_window') and event.widget == self.threats_listbox_window:
             self.active_threats_listbox = self.threats_listbox_window
         else:
             return
-        
+
         try:
             self.active_threats_listbox.selection_clear(0, tk.END)
             self.active_threats_listbox.selection_set(self.active_threats_listbox.nearest(event.y))
@@ -473,87 +488,276 @@ class AegisApp:
     def _get_selected_threat_path(self):
         """Получить путь выбранной угрозы"""
         try:
+            selection = None
             if hasattr(self, 'active_threats_listbox'):
                 selection = self.active_threats_listbox.curselection()
                 if selection:
                     item = self.active_threats_listbox.get(selection[0])
-                    # Разделяем путь и имя угрозы
                     if " — " in item:
-                        return item.split(" — ")[0].strip()
+                        return item.split(" — ", 1)[0].strip()
             return None
         except:
             return None
 
-        log_header = tk.Frame(right, bg=self.colors['surface'])
-        log_header.pack(fill=tk.X, padx=20, pady=(0, 10))
-        
-        log_title_frame = tk.Frame(log_header, bg=self.colors['surface'])
-        log_title_frame.pack(side=tk.LEFT)
-        
-        tk.Label(log_title_frame, text="📋", font=("Segoe UI", 16), 
-                bg=self.colors['surface'], fg=self.colors['blue']).pack(side=tk.LEFT)
-        
-        tk.Label(log_title_frame, text="Журнал сканирования", font=self.fonts['title'],
-                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
-        
-        tk.Button(log_header, text="🗑️", command=self._clear_log,
-                 font=self.fonts['small'], bg=self.colors['surface'],
-                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
-        
-        # Виджет лога
-        self.log_widget = scrolledtext.ScrolledText(
-            right, wrap=tk.WORD, font=self.fonts['console'],
-            bg=self.colors['console_bg'], fg=self.colors['console_fg'],
-            insertbackground=self.colors['console_fg'], 
-            selectbackground=self.colors['blue'], selectforeground='white',
-            bd=0, relief='flat', padx=10, pady=5
-        )
-        self.log_widget.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 15))
-        
-        # Прогресс с современным дизайном
-        self.progress_frame = tk.Frame(right, bg=self.colors['surface'])
-        self.progress_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        
-        # Прогресс-бар с кастомным стилем
-        style = ttk.Style()
-        style.configure("Modern.Horizontal.TProgressbar",
-                       background=self.colors['success'],
-                       troughcolor=self.colors['surface'],
-                       borderwidth=0,
-                       lightcolor=self.colors['success'],
-                       darkcolor=self.colors['success'])
-        
-        self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate',
-                                            style="Modern.Horizontal.TProgressbar",
-                                            length=400)
-        self.progress_bar.pack(fill=tk.X, pady=(0, 5))
-        
-        self.progress_label = tk.Label(self.progress_frame, text="Готов к работе",
-                                       font=self.fonts['small'], bg=self.colors['surface'],
-                                       fg=self.colors['text_muted'])
-        self.progress_label.pack(anchor='w')
-        
-        # Футер с градиентом
-        footer = tk.Frame(main, bg=self.colors['header'], height=40)
-        footer.pack(fill=tk.X)
-        footer.pack_propagate(False)
-        
-        # Градиент для футера
-        footer_canvas = tk.Canvas(footer, height=40, bg=self.colors['header'], highlightthickness=0)
-        footer_canvas.pack(fill=tk.X)
-        
-        for i in range(40):
-            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i/40)
-            footer_canvas.create_line(0, i, 1100, i, fill=color)
-        
-        # Информация в футере
-        footer_canvas.create_text(30, 20, text=f"v{self.version}", 
-                                font=self.fonts['small'], fill='#94a3b8', anchor='w')
-        footer_canvas.create_text(550, 20, text="© 2026 Aegis Core", 
-                                font=self.fonts['small'], fill='#94a3b8', anchor='center')
-        footer_canvas.create_text(1070, 20, text=self.author_email, 
-                                font=self.fonts['small'], fill='#94a3b8', anchor='e')
-    
+    def _show_quarantine_window(self):
+        """Показать содержимое карантина"""
+        window = tk.Toplevel(self.root)
+        window.title("Файлы в карантине")
+        window.geometry("700x450")
+        window.configure(bg=self.colors['bg'])
+
+        header = tk.Frame(window, bg=self.colors['header'], height=60)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        tk.Label(header, text="Карантин", font=self.fonts['header'], bg=self.colors['header'], fg='white').pack(anchor='w', padx=20, pady=15)
+
+        frame = tk.Frame(window, bg=self.colors['surface'])
+        frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+
+        quarantine_list = tk.Listbox(frame, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
+                                    selectbackground=self.colors['blue'], selectforeground='white', font=self.fonts['console'], bd=0)
+        quarantine_list.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(0, 10))
+
+        scrollbar = tk.Scrollbar(frame, command=quarantine_list.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        quarantine_list.config(yscrollcommand=scrollbar.set)
+
+        files = self.quarantine.list_files()
+        if files:
+            for path in files:
+                quarantine_list.insert(tk.END, path)
+        else:
+            quarantine_list.insert(tk.END, 'Карантин пуст')
+
+        buttons = tk.Frame(window, bg=self.colors['bg'])
+        buttons.pack(fill=tk.X, padx=15, pady=(0, 15))
+
+        def open_selected_quarantine():
+            sel = quarantine_list.curselection()
+            if not sel:
+                return
+            path = quarantine_list.get(sel[0])
+            if os.path.exists(path):
+                os.startfile(os.path.dirname(path))
+            else:
+                messagebox.showerror('Ошибка', 'Файл не найден')
+
+        def delete_selected_quarantine():
+            sel = quarantine_list.curselection()
+            if not sel:
+                return
+            path = quarantine_list.get(sel[0])
+            if self.quarantine.remove(path):
+                quarantine_list.delete(sel[0])
+                self._log(f'🗑️ Удалён из карантина: {path}')
+                messagebox.showinfo('Карантин', 'Файл удалён из карантина')
+            else:
+                messagebox.showerror('Ошибка', 'Не удалось удалить файл из карантина')
+
+        tk.Button(buttons, text='Открыть папку', command=open_selected_quarantine,
+                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
+        tk.Button(buttons, text='Удалить из карантина', command=delete_selected_quarantine,
+                  font=self.fonts['button'], bg=self.colors['red'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+
+    def _show_suspicious_files_window(self):
+        window = tk.Toplevel(self.root)
+        window.title("Подозрительные файлы")
+        window.geometry("760x480")
+        window.configure(bg=self.colors['bg'])
+
+        header = tk.Frame(window, bg=self.colors['header'], height=60)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        tk.Label(header, text="⚠️ Подозрительные файлы", font=self.fonts['header'],
+                 bg=self.colors['header'], fg='white').pack(anchor='w', padx=20, pady=15)
+
+        frame = tk.Frame(window, bg=self.colors['surface'])
+        frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+
+        suspicious_list = tk.Listbox(frame, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
+                                     selectbackground=self.colors['blue'], selectforeground='white',
+                                     font=self.fonts['console'], bd=0, relief='flat')
+        suspicious_list.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(0, 10))
+
+        scrollbar = tk.Scrollbar(frame, command=suspicious_list.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        suspicious_list.config(yscrollcommand=scrollbar.set)
+
+        for item in self.threats_listbox.get(0, tk.END):
+            suspicious_list.insert(tk.END, item)
+        if suspicious_list.size() == 0:
+            suspicious_list.insert(tk.END, 'Угроз не обнаружено')
+
+        def open_selected_from_window(event):
+            self.active_threats_listbox = suspicious_list
+            self._open_selected_threat_location()
+
+        suspicious_list.bind("<Double-Button-1>", open_selected_from_window)
+        suspicious_list.bind("<Button-3>", self._show_threats_context_menu)
+        self.threats_listbox_window = suspicious_list
+
+        buttons = tk.Frame(window, bg=self.colors['bg'])
+        buttons.pack(fill=tk.X, padx=15, pady=(0, 15))
+
+        tk.Button(buttons, text='Открыть папку', command=self._open_selected_threat_location,
+                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
+        tk.Button(buttons, text='В карантин', command=self._send_selected_to_quarantine,
+                  font=self.fonts['button'], bg=self.colors['purple'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+        tk.Button(buttons, text='Лечить', command=self._heal_selected_threat,
+                  font=self.fonts['button'], bg=self.colors['orange'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+        tk.Button(buttons, text='Удалить', command=self._delete_selected_threat,
+                  font=self.fonts['button'], bg=self.colors['red'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+        tk.Button(buttons, text='Проверить подпись', command=self._check_selected_signature,
+                  font=self.fonts['button'], bg=self.colors['green'], fg='white', bd=0,
+                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+
+    def _is_system_file(self, filepath):
+        try:
+            absolute_path = os.path.normcase(os.path.abspath(filepath))
+            windir = os.environ.get('WINDIR', 'C:\\Windows')
+            system_paths = [
+                os.path.normcase(os.path.join(windir, 'System32')),
+                os.path.normcase(os.path.join(windir, 'SysWOW64')),
+                os.path.normcase(os.path.join(windir, 'WinSxS')),
+                os.path.normcase(windir)
+            ]
+            return any(absolute_path == path or absolute_path.startswith(path + os.sep) for path in system_paths)
+        except Exception:
+            return False
+
+    def _is_signed_by_microsoft(self, filepath):
+        if os.name != 'nt' or not os.path.exists(filepath):
+            return None
+        try:
+            import subprocess, json
+            safe_path = filepath.replace("'", "''")
+            ps_script = (
+                f"$sig = Get-AuthenticodeSignature -FilePath '{safe_path}';"
+                "$result = [PSCustomObject]@{Status=$sig.Status;"
+                "Signer=($sig.SignerCertificate.Subject -join ', ');"
+                "Issuer=($sig.SignerCertificate.IssuerName -join ', ')};"
+                "ConvertTo-Json $result"
+            )
+            output = subprocess.check_output(['powershell', '-NoProfile', '-Command', ps_script], stderr=subprocess.DEVNULL, text=True)
+            data = json.loads(output)
+            status = data.get('Status', '')
+            signer = data.get('Signer', '') or ''
+            issuer = data.get('Issuer', '') or ''
+            if status == 'Valid' and ('Microsoft' in signer or 'Microsoft' in issuer):
+                return True
+            return False
+        except Exception:
+            return None
+
+    def _extract_command_path(self, command_string):
+        try:
+            import re
+            match = re.search(r'"([^"]+)"', command_string)
+            if match:
+                return match.group(1)
+            return command_string.split()[0] if command_string else None
+        except Exception:
+            return None
+
+    def _scan_autorun_entries(self):
+        """Проверка подозрительных записей автозагрузки"""
+        self._log('🔎 Сканирование автозагрузки')
+        suspicious = []
+        try:
+            startup_paths = [
+                os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup'),
+                os.path.join(os.environ.get('ProgramData', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+            ]
+            for folder in startup_paths:
+                if os.path.isdir(folder):
+                    for filename in os.listdir(folder):
+                        filepath = os.path.join(folder, filename)
+                        if os.path.isfile(filepath):
+                            if not self._is_signed_by_microsoft(filepath):
+                                suspicious.append((filepath, 'Файл автозагрузки не подписан Microsoft'))
+
+            import winreg
+            run_keys = [
+                (winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Run'),
+                (winreg.HKEY_LOCAL_MACHINE, r'Software\Microsoft\Windows\CurrentVersion\Run'),
+                (winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\RunOnce'),
+                (winreg.HKEY_LOCAL_MACHINE, r'Software\Microsoft\Windows\CurrentVersion\RunOnce')
+            ]
+            for hive, subkey in run_keys:
+                try:
+                    with winreg.OpenKey(hive, subkey) as key:
+                        i = 0
+                        while True:
+                            try:
+                                name, value, _ = winreg.EnumValue(key, i)
+                                target_path = self._extract_command_path(value)
+                                if target_path and not os.path.exists(target_path):
+                                    suspicious.append((value, 'Автозагрузка указывает на несуществующий путь'))
+                                elif target_path and self._is_system_file(target_path) and self._is_signed_by_microsoft(target_path) is False:
+                                    suspicious.append((target_path, 'Системный автозапуск без подписи Microsoft'))
+                                i += 1
+                            except OSError:
+                                break
+                except Exception:
+                    pass
+        except Exception as e:
+            self._log(f'❌ Ошибка автозагрузки: {e}')
+
+        if suspicious:
+            self._log(f'⚠️ Найдено подозрительных автозапусков: {len(suspicious)}')
+            for path, reason in suspicious:
+                self._log(f'   └─ {path} — {reason}')
+            messagebox.showwarning('Автозагрузка', f'Найдены подозрительные записи автозагрузки: {len(suspicious)}')
+        else:
+            self._log('✅ Автозагрузка не содержит подозрительных записей')
+            messagebox.showinfo('Автозагрузка', 'Автозагрузка чиста')
+
+    def scan_file_on_start(self, filepath):
+        self._scan_file_path(filepath, ask_quarantine=False)
+
+    def _draw_header_gradient(self, canvas, height):
+        canvas.delete("header_gradient")
+        width = canvas.winfo_width() or 1100
+        for i in range(height):
+            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i / height)
+            canvas.create_line(0, i, width, i, fill=color, tags="header_gradient")
+
+    def _update_header_text(self, event=None):
+        if not self.header_canvas:
+            return
+        self._draw_header_gradient(self.header_canvas, 60)
+        self.header_canvas.delete("header_text")
+        self.header_canvas.create_text(30, 22, text="🛡️ AEGIS CORE",
+                                font=self.fonts['header'], fill='white', anchor='w', tags="header_text")
+        self.header_canvas.create_text(30, 42, text="Антивирусная защита",
+                                font=self.fonts['subtitle'], fill='#94a3b8', anchor='w', tags="header_text")
+
+    def _draw_footer_gradient(self, canvas, height):
+        canvas.delete("footer_gradient")
+        width = canvas.winfo_width() or 1100
+        for i in range(height):
+            color = self._interpolate_color(self.colors['header'], self.colors['header_gradient'], i / height)
+            canvas.create_line(0, i, width, i, fill=color, tags="footer_gradient")
+
+    def _update_footer_text(self, event=None):
+        if not self.footer_canvas:
+            return
+        self._draw_footer_gradient(self.footer_canvas, 40)
+        self.footer_canvas.delete("footer_text")
+        width = self.footer_canvas.winfo_width() or 1100
+        self.footer_canvas.create_text(30, 20, text=f"v{self.version}",
+                                font=self.fonts['small'], fill='#94a3b8', anchor='w', tags="footer_text")
+        self.footer_canvas.create_text(width // 2, 20, text="© 2026 Aegis Core",
+                                font=self.fonts['small'], fill='#94a3b8', anchor='center', tags="footer_text")
+        self.footer_canvas.create_text(width - 30, 20, text=self.author_email,
+                                font=self.fonts['small'], fill='#94a3b8', anchor='e', tags="footer_text")
+
     def _log(self, msg):
         """Логирование"""
         def action():
@@ -572,10 +776,147 @@ class AegisApp:
                 entry = f"{filepath} — {threat_name}"
                 self.threats_listbox.insert(tk.END, entry)
                 self.threats_listbox.see(tk.END)
+                self._update_threat_pie_chart()
             except Exception:
                 pass
         self._safe_ui(action)
-    
+
+    def _draw_threat_pie_chart(self):
+        if not hasattr(self, 'pie_canvas') or not self.pie_canvas:
+            return
+        self.pie_canvas.delete('all')
+        counts = {}
+        for i in range(self.threats_listbox.size()):
+            item = self.threats_listbox.get(i)
+            if ' — ' in item:
+                threat_type = item.split(' — ', 1)[1]
+            else:
+                threat_type = 'Неизвестно'
+            counts[threat_type] = counts.get(threat_type, 0) + 1
+
+        if not counts:
+            self.pie_canvas.create_text(550, 80, text='Нет обнаруженных угроз',
+                                        font=self.fonts['body'], fill=self.colors['text_muted'])
+            return
+
+        total = sum(counts.values())
+        start_angle = 0
+        colors = [self.colors['red'], self.colors['orange'], self.colors['blue'], self.colors['green'], self.colors['purple']]
+
+        legend_x = 420
+        legend_y = 20
+        for index, (threat_type, value) in enumerate(counts.items()):
+            extent = int(360 * (value / total))
+            self.pie_canvas.create_arc(20, 20, 220, 180, start=start_angle,
+                                       extent=extent, fill=colors[index % len(colors)], outline='')
+            self.pie_canvas.create_rectangle(legend_x, legend_y + index * 20,
+                                            legend_x + 12, legend_y + index * 20 + 12,
+                                            fill=colors[index % len(colors)], outline='')
+            self.pie_canvas.create_text(legend_x + 22, legend_y + index * 20 + 6,
+                                       text=f"{threat_type} ({value})",
+                                       anchor='w', font=self.fonts['small'], fill=self.colors['text'])
+            start_angle += extent
+
+        self.pie_canvas.create_text(120, 90, text='Типы угроз', font=self.fonts['title'], fill=self.colors['text'])
+
+    def _update_threat_pie_chart(self):
+        self._safe_ui(lambda: self._draw_threat_pie_chart())
+
+    def _send_selected_to_quarantine(self):
+        path = self._get_selected_threat_path()
+        if not path:
+            messagebox.showwarning('Карантин', 'Выберите файл для помещения в карантин')
+            return
+        if self.quarantine.add(path):
+            self._log(f'📦 В карантин: {path}')
+            messagebox.showinfo('Карантин', 'Файл отправлен в карантин')
+        else:
+            messagebox.showerror('Карантин', 'Не удалось поместить файл в карантин')
+
+    def _check_selected_signature(self):
+        path = self._get_selected_threat_path()
+        if not path:
+            messagebox.showwarning('Подпись', 'Выберите файл')
+            return
+        result = self._is_signed_by_microsoft(path)
+        if result is True:
+            messagebox.showinfo('Подпись', 'Файл подписан Microsoft')
+        elif result is False:
+            messagebox.showwarning('Подпись', 'Файл не подписан Microsoft или подпись отсутствует')
+        else:
+            messagebox.showinfo('Подпись', 'Не удалось проверить подпись')
+
+    def _heal_selected_threat(self):
+        """Попытка лечения выбранного файла"""
+        path = self._get_selected_threat_path()
+        if not path:
+            messagebox.showwarning('Лечение', 'Выберите файл для лечения')
+            return
+        
+        if not os.path.exists(path):
+            messagebox.showerror('Ошибка', 'Файл не найден')
+            return
+        
+        # Подтверждение
+        if messagebox.askyesno('Лечение', f'Лечить файл?\n{path}'):
+            cleaner = FileCleaner()
+            success, message = cleaner.disinfect_file(path)
+            
+            if success:
+                self._log(f'✓ Файл пролечен: {path}')
+                messagebox.showinfo('Лечение', message)
+            else:
+                self._log(f'✗ Ошибка лечения: {message}')
+                messagebox.showerror('Ошибка лечения', message)
+
+    def _delete_selected_threat(self):
+        """Удаление выбранного файла"""
+        path = self._get_selected_threat_path()
+        if not path:
+            messagebox.showwarning('Удаление', 'Выберите файл для удаления')
+            return
+        
+        if not os.path.exists(path):
+            messagebox.showerror('Ошибка', 'Файл не найден')
+            return
+        
+        # Мощное предупреждение
+        response = messagebox.askyesnocancel(
+            'Удаление файла',
+            f'Вы уверены, что хотите удалить файл?\n\n{path}\n\n'
+            'Это действие необратимо!\n\n'
+            'Yes - Удалить с резервной копией\n'
+            'No - Безопасное удаление (перезапись)',
+            icon=messagebox.WARNING
+        )
+        
+        if response is None:
+            return
+        
+        cleaner = FileCleaner()
+        
+        if response:
+            # Обычное удаление с резервной копией
+            success, message = cleaner.delete_file(path, create_backup=True)
+        else:
+            # Безопасное удаление
+            success, message = cleaner.secure_delete(path, passes=3)
+        
+        if success:
+            self._log(f'🗑️ Файл удален: {path}')
+            
+            # Удаляем из списка угроз
+            try:
+                index = self.threats_listbox.curselection()[0]
+                self.threats_listbox.delete(index)
+            except:
+                pass
+            
+            messagebox.showinfo('Удаление', 'Файл успешно удален')
+        else:
+            self._log(f'✗ Ошибка удаления: {message}')
+            messagebox.showerror('Ошибка удаления', message)
+
     def _clear_threats_list(self):
         """Очистка списка обнаруженных угроз"""
         def action():
@@ -769,24 +1110,13 @@ class AegisApp:
         self._draw_animation_idle()
     
     def _play_sound(self, sound_type="threat"):
-        """Воспроизведение системного звука Windows"""
+        """Воспроизведение звука (исправленная версия)"""
         try:
-            if sound_type == "threat":
-                winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_ASYNC)
-            elif sound_type == "scan_complete":
-                winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
-            elif sound_type == "usb_detected":
-                winsound.PlaySound("SystemQuestion", winsound.SND_ALIAS | winsound.SND_ASYNC)
+            sound_manager = get_sound_manager(enable_sound=True)
+            sound_manager.play_async(sound_type)
         except Exception:
-            try:
-                if sound_type == "threat":
-                    winsound.MessageBeep(winsound.MB_ICONHAND)
-                elif sound_type == "scan_complete":
-                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
-                elif sound_type == "usb_detected":
-                    winsound.MessageBeep(winsound.MB_ICONQUESTION)
-            except Exception:
-                pass
+            # Молча игнорируем ошибки звука
+            pass
     
     def _get_usb_devices(self):
         """Получение списка USB устройств"""
@@ -919,24 +1249,44 @@ class AegisApp:
         filepath = filedialog.askopenfilename(title="Выберите файл")
         if not filepath:
             return
-        
+        self._scan_file_path(filepath)
+
+    def _scan_file_path(self, filepath, ask_quarantine=True):
+        """Проверка файла по указанному пути"""
         self._clear_threats_list()
         self._log(f"🔍 Проверка: {filepath}")
-        
+
         result = self.scanner.scan_file(filepath)
-        
+        ms_signed = self._is_signed_by_microsoft(filepath)
+        if ms_signed is True:
+            result['details'].append('Подпись Microsoft: подтверждена')
+        elif ms_signed is False:
+            result['details'].append('Подпись Microsoft: отсутствует или неподписан')
+        else:
+            result['details'].append('Проверка подписи недоступна')
+
+        if self._is_system_file(filepath):
+            if ms_signed is False:
+                result['details'].append('Внимание: системный файл без подписи Microsoft')
+            else:
+                result['details'].append('Системный файл проверен')
+
         if result['is_threat']:
             self._log(f"⚠️ УГРОЗА: {result['threat_name']} в {filepath}")
             self._add_threat_file(filepath, result['threat_name'])
             self._play_sound("threat")
             for d in result['details']:
                 self._log(f"   └─ {d}")
-            
-            if messagebox.askyesno("Угроза!", "Поместить в карантин?"):
-                self.quarantine.add(filepath)
-                self._log("📦 В карантин")
+
+            if ask_quarantine and messagebox.askyesno("Угроза!", "Поместить в карантин?"):
+                if self.quarantine.add(filepath):
+                    self._log("📦 В карантин")
+                else:
+                    self._log("❌ Не удалось поместить в карантин")
         else:
             self._log("✅ Чистый")
+            for d in result['details']:
+                self._log(f"   └─ {d}")
             messagebox.showinfo("Проверка", "Угроз не найдено")
     
     def _scan_worker(self, name, areas):
