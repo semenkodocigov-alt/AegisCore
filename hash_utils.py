@@ -52,7 +52,7 @@ def calculate_md5(filepath):
         return None
 
 def calculate_sha1(filepath):
-    """SHA1 хеш файла (оставлен на Python для совместимости)"""
+    """SHA1 хеш файла (оставлен на питоне для совместимости)"""
     import hashlib
     try:
         hasher = hashlib.sha1()

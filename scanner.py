@@ -1,13 +1,44 @@
 """Сканер файлов"""
 import os
-from signatures import SignatureDatabase
+from config import get_config
 from analyzer import FileAnalyzer
 from hash_utils import calculate_all
 
+config = get_config()
+if config.is_using_improved_signatures():
+    from signatures_improved import SignatureDatabase
+else:
+    from signatures import SignatureDatabase
+
 class FileScanner:
+    SUSPICIOUS_EXTENSIONS = {
+        '.exe', '.dll', '.sys', '.scr', '.ocx', '.drv',
+        '.bat', '.cmd', '.vbs', '.js', '.jse', '.wsf', '.wsh',
+        '.ps1', '.psm1', '.psd1'
+    }
+    SUSPICIOUS_NAMES = [
+        'keygen', 'crack', 'patch', 'hacktool', 'activator',
+        'injector', 'bypass', 'stealer', 'keylogger', 'miner',
+        'trojan', 'virus', 'worm', 'ransomware', 'backdoor',
+        'rootkit', 'spyware', 'adware', 'malware', 'exploit',
+        'payload', 'shellcode', 'dropper', 'loader', 'bot',
+        'rat', 'remote', 'access', 'hack', 'cheat', 'trainer',
+        'packer', 'binder', 'obfuscator', 'deobfuscator'
+    ]
+
     def __init__(self):
         self.sig_db = SignatureDatabase()
         self.analyzer = FileAnalyzer(self.sig_db)
+
+    def _should_analyze_file(self, filepath, filename=None):
+        filename = filename or os.path.basename(filepath).lower()
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in self.SUSPICIOUS_EXTENSIONS:
+            return True
+        for name in self.SUSPICIOUS_NAMES:
+            if name in filename:
+                return True
+        return False
     
     def scan_file(self, filepath):
         """
@@ -50,8 +81,11 @@ class FileScanner:
                 result['details'].append(f"Найдена сигнатура: {sig_match['name']}")
                 return result
             
-            # Эвристический анализ
-            status, threats, score = self.analyzer.analyze(filepath)
+            # Эвристический анализ только для подозрительных файлов
+            if self._should_analyze_file(filepath, filename):
+                status, threats, score = self.analyzer.analyze(filepath)
+            else:
+                status, threats, score = 'clean', [], 0
             
             if status != 'clean':
                 result['is_threat'] = True

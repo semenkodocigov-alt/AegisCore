@@ -1208,12 +1208,32 @@ class AegisApp:
         self._log("=" * 50)
         self._log("⚡ БЫСТРАЯ ПРОВЕРКА")
         
-        areas = [
-            (os.environ.get('TEMP', ''), 2, 100),
-            (str(Path.home() / "Downloads"), 2, 100)
-        ]
-        
-        threading.Thread(target=self._scan_worker, 
+        temp_path = os.environ.get('TEMP', '') or os.environ.get('TMP', '')
+        download_path = Path.home() / "Downloads"
+        download_ru = Path.home() / "Загрузки"
+        desktop_path = Path.home() / "Desktop"
+        documents_path = Path.home() / "Documents"
+        areas = []
+
+        if temp_path and os.path.exists(temp_path):
+            areas.append((temp_path, 2, 100))
+        if download_path.exists():
+            areas.append((str(download_path), 2, 100))
+        elif download_ru.exists():
+            areas.append((str(download_ru), 2, 100))
+        if desktop_path.exists():
+            areas.append((str(desktop_path), 2, 100))
+        if documents_path.exists():
+            areas.append((str(documents_path), 2, 100))
+
+        if not areas:
+            self._log("⚠️ Нет доступных стандартных областей для быстрого сканирования")
+            self.root.after(100, lambda: messagebox.showinfo("Быстрая проверка", "Не найдены стандартные папки для быстрого сканирования."))
+            self.is_scanning = False
+            self._stop_animation()
+            return
+
+        threading.Thread(target=self._scan_worker,
                         args=("Быстрая", areas), daemon=True).start()
     
     def _full_scan(self):
@@ -1291,24 +1311,35 @@ class AegisApp:
     
     def _scan_worker(self, name, areas):
         """Рабочий процесс сканирования"""
+        detected_threat_paths = []
+        seen_paths = set()
+
         try:
             total = len(areas)
-            detected_threat_paths = []
-            seen_paths = set()
+            if total == 0:
+                self._log("⚠️ Нет областей для сканирования")
+                self.root.after(100, lambda: messagebox.showinfo(name, "Нет доступных областей для сканирования."))
+                self.is_scanning = False
+                self._stop_animation()
+                return
 
             for i, (path, depth, max_f) in enumerate(areas):
                 if not self.is_scanning:
                     break
-                
+
                 if not os.path.exists(path):
+                    self._log(f"⚠️ Путь не найден: {path}")
                     continue
-                
-                self._log(f"📂 {os.path.basename(path)}")
-                
-                scan_data = self.scanner.scan_directory(path, depth, max_f)
+
+                self._log(f"📂 {os.path.basename(path) or path}")
+
+                progress = (i / total) * 100
+                def scan_callback(filepath, is_threat):
+                    self._update_progress(progress, f"Сканируется: {os.path.basename(filepath)}")
+                scan_data = self.scanner.scan_directory(path, depth, max_f, callback=scan_callback)
                 self.files_scanned += scan_data['files_scanned']
                 self.threats_found += len(scan_data['results'])
-                
+
                 for r in scan_data['results']:
                     self._log(f"⚠️ Угроза: {r['filepath']} — {r['threat_name']}")
                     self._add_threat_file(r['filepath'], r['threat_name'])
@@ -1316,10 +1347,10 @@ class AegisApp:
                     if r['filepath'] not in seen_paths:
                         seen_paths.add(r['filepath'])
                         detected_threat_paths.append(r['filepath'])
-                
+
                 progress = ((i + 1) / total) * 100
                 self._update_progress(progress, f"Сканирование...")
-            
+
             self._update_progress(100, "Завершено")
             self._stop_animation()
             self._play_sound("scan_complete")
@@ -1331,7 +1362,7 @@ class AegisApp:
             def show_completion():
                 if detected_threat_paths:
                     if messagebox.askyesno(
-                        "Карантин", 
+                        "Карантин",
                         f"Обнаружено угроз: {len(detected_threat_paths)}.\nПоместить все найденные файлы в карантин?"
                     ):
                         success_count = 0
@@ -1354,9 +1385,10 @@ class AegisApp:
                     )
 
             self.root.after(500, show_completion)
-            
+
         except Exception as e:
             self._log(f"❌ Ошибка: {e}")
+
         finally:
             self.is_scanning = False
             self._stop_animation()

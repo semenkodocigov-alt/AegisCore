@@ -9,16 +9,24 @@ import time
 import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta
+from config import get_config
 
 class VirusTotalChecker:
-    """Проверка через VirusTotal API v3"""
+    """Проверка через вирус тотал"""
     
     API_URL = "https://www.virustotal.com/api/v3"
-    REQUEST_TIMEOUT = 15
+    REQUEST_TIMEOUT = 30
+    RATE_LIMIT_DELAY = 20
     
     def __init__(self, api_key=""):
-        self.api_key = api_key or os.environ.get('VIRUSTOTAL_API_KEY', '')
+        self.api_key = api_key or get_config().get_vt_api_key()
         self.enabled = bool(self.api_key)
+        self.last_request_time = 0
+    
+    def _wait_for_rate_limit(self):
+        elapsed = time.time() - self.last_request_time
+        if elapsed < self.RATE_LIMIT_DELAY:
+            time.sleep(self.RATE_LIMIT_DELAY - elapsed)
     
     def check_file_hash(self, file_hash, hash_type="sha256"):
         """
@@ -30,20 +38,28 @@ class VirusTotalChecker:
             return None
         
         try:
+            self._wait_for_rate_limit()
             headers = {"x-apikey": self.api_key}
             url = f"{self.API_URL}/files/{file_hash}"
-            
+            print('⏳ Проверка VirusTotal: запрос отправлен')
             response = requests.get(
-                url, 
-                headers=headers, 
+                url,
+                headers=headers,
                 timeout=self.REQUEST_TIMEOUT
             )
+            self.last_request_time = time.time()
             
             if response.status_code == 404:
                 # Файл не найден в VirusTotal
                 return {"positives": 0, "total": 0}
-            
+            if response.status_code == 429:
+                print('⚠️ VirusTotal: превышен лимит запросов')
+                return None
+            if response.status_code >= 500:
+                print(f'⚠️ VirusTotal: серверная ошибка {response.status_code}')
+                return None
             if response.status_code != 200:
+                print(f'⚠️ VirusTotal: неожиданный код {response.status_code}')
                 return None
             
             data = response.json()
@@ -70,11 +86,17 @@ class VirusTotalChecker:
                 "last_analysis_date": attributes.get('last_analysis_date', 0)
             }
         
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as e:
+            print(f'⚠️ VirusTotal: timeout ({e})')
             return None
-        except requests.exceptions.RequestException:
+        except requests.exceptions.ConnectionError as e:
+            print(f'⚠️ VirusTotal: ошибка соединения ({e})')
             return None
-        except Exception:
+        except requests.exceptions.RequestException as e:
+            print(f'⚠️ VirusTotal: ошибка запроса ({e})')
+            return None
+        except Exception as e:
+            print(f'⚠️ VirusTotal: неизвестная ошибка ({e})')
             return None
 
 

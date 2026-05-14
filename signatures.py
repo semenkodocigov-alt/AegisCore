@@ -4,6 +4,7 @@ import json
 import os
 import time
 from pathlib import Path
+from config import get_config
 
 class SignatureDatabase:
     def __init__(self):
@@ -25,7 +26,7 @@ class SignatureDatabase:
         self.cache = self._load_cache()
 
         # API ключи (нужно настроить)
-        self.vt_api_key = os.environ.get('VIRUSTOTAL_API_KEY', '')
+        self.vt_api_key = get_config().get_vt_api_key()
         self.kaspersky_api_key = os.environ.get('KASPERSKY_API_KEY', '')
 
     def _load_local_signatures(self):
@@ -136,25 +137,20 @@ class SignatureDatabase:
                             "description": f"Обнаружено {cached_result['positives']} антивирусами из {cached_result['total']}"
                         }
 
-        # Онлайн проверка VirusTotal
-        if self.vt_api_key and (md5 or sha256):
-            hash_to_check = sha256 or md5
-            if hash_to_check in self.cache:
-                cached_result = self.cache[hash_to_check]
-                if time.time() - cached_result.get('timestamp', 0) < 86400:  # 24 часа
-                    if cached_result.get('positives', 0) > 5:
-                        return {
-                            "name": f"VirusTotal Detection ({cached_result['positives']}/{cached_result['total']})",
-                            "type": "malware",
-                            "severity": "high" if cached_result['positives'] > 10 else "medium",
-                            "description": f"Обнаружено {cached_result['positives']} антивирусами из {cached_result['total']}"
-                        }
-
             # Запрос к VirusTotal
             try:
+                if hasattr(self, 'last_vt_request_time'):
+                    elapsed = time.time() - self.last_vt_request_time
+                    if elapsed < 20:
+                        time.sleep(20 - elapsed)
+                else:
+                    self.last_vt_request_time = 0
+
                 url = f"https://www.virustotal.com/api/v3/files/{hash_to_check}"
                 headers = {"x-apikey": self.vt_api_key}
-                response = requests.get(url, headers=headers, timeout=10)
+                print('⏳ Проверка VirusTotal: запрос отправлен')
+                response = requests.get(url, headers=headers, timeout=30)
+                self.last_vt_request_time = time.time()
 
                 if response.status_code == 200:
                     data = response.json()
@@ -187,12 +183,14 @@ class SignatureDatabase:
                         }
                         self._save_cache()
 
+            except requests.exceptions.Timeout as e:
+                print(f'⚠️ VirusTotal: timeout ({e})')
+            except requests.exceptions.ConnectionError as e:
+                print(f'⚠️ VirusTotal: ошибка соединения ({e})')
             except requests.exceptions.RequestException as e:
-                # Ошибка сети или API - просто пропускаем
-                pass
+                print(f'⚠️ VirusTotal: ошибка запроса ({e})')
             except Exception as e:
-                # Любая другая ошибка - тоже пропускаем
-                pass
+                print(f'⚠️ VirusTotal: неизвестная ошибка ({e})')
 
         return None
 

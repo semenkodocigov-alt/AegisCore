@@ -22,6 +22,7 @@ class Config:
         "max_file_size": 104857600,        # Максимальный размер файла (100MB)
         "log_file": None,                  # Сохранять логи в файл (None = не сохранять)
         "vt_api_key_env": "VIRUSTOTAL_API_KEY",  # Имя переменной окружения для API
+        "vt_api_key": "",                 # VirusTotal API ключ (можно задать здесь)
         "quarantine_dir": "./quarantine",  # Директория для карантина
         "backup_dir": "./backups",         # Директория для резервных копий
     }
@@ -78,6 +79,9 @@ class Config:
     
     def get_vt_api_key(self):
         """Получить VirusTotal API ключ"""
+        api_key = self.get("vt_api_key", "")
+        if api_key:
+            return api_key
         env_var = self.get("vt_api_key_env")
         return os.environ.get(env_var, "")
     

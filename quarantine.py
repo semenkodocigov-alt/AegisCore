@@ -2,13 +2,17 @@
 import os
 import shutil
 import time
+from pathlib import Path
+from config import get_config
 
 class QuarantineManager:
     def __init__(self):
-        # Папка карантина в домашней директории
-        self.quarantine_dir = os.path.join(os.path.expanduser("~"), "AegisCore_Quarantine")
+        cfg = get_config()
+        quarantine_dir = cfg.get("quarantine_dir", "./quarantine")
+        if not os.path.isabs(quarantine_dir):
+            quarantine_dir = str(Path(__file__).parent.joinpath(quarantine_dir).resolve())
+        self.quarantine_dir = quarantine_dir
         os.makedirs(self.quarantine_dir, exist_ok=True)
-        
         self.files = []
     
     def add(self, filepath):
