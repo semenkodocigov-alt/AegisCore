@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    import wmi
+    import wmi # pyright: ignore[reportMissingImports]
     WMI_AVAILABLE = True
 except ImportError:
     WMI_AVAILABLE = False
@@ -1293,6 +1293,9 @@ class AegisApp:
         """Рабочий процесс сканирования"""
         try:
             total = len(areas)
+            detected_threat_paths = []
+            seen_paths = set()
+
             for i, (path, depth, max_f) in enumerate(areas):
                 if not self.is_scanning:
                     break
@@ -1310,6 +1313,9 @@ class AegisApp:
                     self._log(f"⚠️ Угроза: {r['filepath']} — {r['threat_name']}")
                     self._add_threat_file(r['filepath'], r['threat_name'])
                     self._play_sound("threat")
+                    if r['filepath'] not in seen_paths:
+                        seen_paths.add(r['filepath'])
+                        detected_threat_paths.append(r['filepath'])
                 
                 progress = ((i + 1) / total) * 100
                 self._update_progress(progress, f"Сканирование...")
@@ -1321,10 +1327,33 @@ class AegisApp:
             self._log(f"✅ {name} проверка завершена")
             self._log(f"📊 Файлов: {self.files_scanned}")
             self._log(f"⚠️ Угроз: {self.threats_found}")
-            
-            self.root.after(500, lambda: messagebox.showinfo(
-                name, f"Файлов: {self.files_scanned}\nУгроз: {self.threats_found}"
-            ))
+
+            def show_completion():
+                if detected_threat_paths:
+                    if messagebox.askyesno(
+                        "Карантин", 
+                        f"Обнаружено угроз: {len(detected_threat_paths)}.\nПоместить все найденные файлы в карантин?"
+                    ):
+                        success_count = 0
+                        for threat_path in detected_threat_paths:
+                            if self.quarantine.add(threat_path):
+                                success_count += 1
+                                self._log(f"📦 В карантин: {threat_path}")
+                        messagebox.showinfo(
+                            "Карантин",
+                            f"В карантин помещено {success_count} из {len(detected_threat_paths)} файлов."
+                        )
+                    else:
+                        messagebox.showinfo(
+                            name,
+                            f"Файлов: {self.files_scanned}\nУгроз: {self.threats_found}\nФайлы не помещены в карантин."
+                        )
+                else:
+                    messagebox.showinfo(
+                        name, f"Файлов: {self.files_scanned}\nУгроз: {self.threats_found}"
+                    )
+
+            self.root.after(500, show_completion)
             
         except Exception as e:
             self._log(f"❌ Ошибка: {e}")
