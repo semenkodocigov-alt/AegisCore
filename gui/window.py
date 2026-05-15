@@ -1,4 +1,4 @@
-# Это создает окошко
+#  создает окошко
 import tkinter as tk
 
 def create_window():
