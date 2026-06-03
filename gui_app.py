@@ -27,16 +27,17 @@ class AegisApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Aegis Core - Антивирусная защита")
-        self.root.geometry("1100x700")  # Увеличено для лучшего вида
-        self.root.configure(bg='#f8fafc')
+        self.root.geometry("1250x760")  # Увеличено для лучшего вида
+        self.root.configure(bg='#0b1228')
+        self.root.resizable(True, True)
         
         # Центрирование окна
         self.root.update_idletasks()
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        x = (screen_width - 1100) // 2
-        y = (screen_height - 700) // 2
-        self.root.geometry(f"1100x700+{x}+{y}")
+        x = (screen_width - 1250) // 2
+        y = (screen_height - 760) // 2
+        self.root.geometry(f"1250x760+{x}+{y}")
         
         self.root.overrideredirect(True)
         self.root.bind('<Map>', self._on_map)
@@ -57,44 +58,46 @@ class AegisApp:
         self.files_scanned = 0
         self.threats_found = 0
         
-        # Современная цветовая схема
+        # Ретро-90-х цветовая схема
         self.colors = {
-            'bg': '#f8fafc',           # Более светлый фон
-            'surface': '#ffffff',      # Чистый белый
-            'surface_hover': '#f1f5f9', # Светло-серый для hover
-            'header': '#0f172a',       # Темно-синий заголовок
-            'header_gradient': '#1e293b', # Градиент для заголовка
-            'green': '#10b981',        # Современный зеленый
-            'green_hover': '#059669',  # Темнее для hover
-            'red': '#ef4444',          # Современный красный
-            'red_hover': '#dc2626',    # Темнее для hover
-            'orange': '#f97316',       # Современный оранжевый
-            'orange_hover': '#ea580c', # Темнее для hover
-            'blue': '#3b82f6',         # Современный синий
-            'blue_hover': '#2563eb',   # Темнее для hover
-            'purple': '#8b5cf6',       # Фиолетовый для акцентов
-            'text': '#1e293b',         # Темно-синий текст
-            'text_secondary': '#64748b', # Серый текст
-            'text_muted': '#94a3b8',   # Светло-серый текст
-            'border': '#e2e8f0',       # Светлая граница
-            'border_hover': '#cbd5e1', # Граница при hover
-            'console_bg': '#0f172a',   # Темный фон консоли
-            'console_fg': '#38bdf8',   # Голубой текст консоли
-            'shadow': '#000000',       # Тень
-            'success': '#22c55e',      # Успех
-            'warning': '#f59e0b',      # Предупреждение
-            'error': '#ef4444'         # Ошибка
+            'bg': '#0b1228',
+            'surface': '#111d3d',
+            'surface_hover': '#21335f',
+            'header': '#00174f',
+            'header_gradient': '#580095',
+            'green': '#00ff9e',
+            'green_hover': '#33ffba',
+            'red': '#ff3f6d',
+            'red_hover': '#ff6f9b',
+            'orange': '#ffd943',
+            'orange_hover': '#ffe676',
+            'blue': '#47b5ff',
+            'blue_hover': '#7fd8ff',
+            'purple': '#c56cff',
+            'purple_hover': '#e09bff',
+            'text': '#f1f5ff',
+            'text_secondary': '#b8c6ff',
+            'text_muted': '#7a8cd3',
+            'border': '#5a7ac8',
+            'border_dark': '#09142c',
+            'console_bg': '#050b22',
+            'console_fg': '#7ef9b0',
+            'accent': '#ff73d6',
+            'shadow': '#04111e',
+            'success': '#00dd86',
+            'warning': '#ffc74d',
+            'error': '#ff4a6a'
         }
         
-        # Современные шрифты
+        # Ретро-шрифты для 90-х
         self.fonts = {
-            'header': ('Segoe UI', 18, 'bold'),
-            'title': ('Segoe UI', 14, 'bold'),
-            'subtitle': ('Segoe UI', 10),
-            'body': ('Segoe UI', 10),
-            'button': ('Segoe UI', 10, 'bold'),
-            'console': ('Consolas', 9),
-            'small': ('Segoe UI', 8)
+            'header': ('Verdana', 18, 'bold'),
+            'title': ('Verdana', 13, 'bold'),
+            'subtitle': ('Verdana', 10),
+            'body': ('Verdana', 10),
+            'button': ('Verdana', 10, 'bold'),
+            'console': ('Courier New', 10),
+            'small': ('Verdana', 8)
         }
         
         # Контакты
@@ -133,63 +136,51 @@ class AegisApp:
         main = tk.Frame(self.root, bg=self.colors['bg'])
         main.pack(fill=tk.BOTH, expand=True)
         
-        # Заголовок с градиентом
-        self.header = tk.Frame(main, bg=self.colors['header'], height=60)  # Увеличена высота
+        # Заголовок с ретро-стилем
+        self.header = tk.Frame(main, bg=self.colors['header'], height=60, relief='raised', bd=2)
         self.header.pack(fill=tk.X)
         self.header.pack_propagate(False)
         self.header.bind("<Button-1>", self._start_move)
         self.header.bind("<B1-Motion>", self._move_window)
         
-        # Градиентный эффект для заголовка
         self.header_canvas = tk.Canvas(self.header, height=60, bg=self.colors['header'], highlightthickness=0)
         self.header_canvas.pack(fill=tk.X)
         self.header_canvas.bind("<Button-1>", self._start_move)
         self.header_canvas.bind("<B1-Motion>", self._move_window)
         self.header_canvas.bind("<Configure>", self._update_header_text)
-        
-        # Градиент от header к header_gradient
         self._draw_header_gradient(self.header_canvas, 60)
         self._update_header_text()
         
-        # Кнопка минимизации
         minimize_btn = tk.Button(self.header, text="▁", command=self._iconify_window,
-                                 font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
-                                 fg='white', bd=0, activebackground=self.colors['surface_hover'],
-                                 activeforeground='white', cursor='hand2', width=3, height=1)
+                                 font=("Verdana", 12, "bold"), bg=self.colors['surface'],
+                                 fg=self.colors['text'], bd=2, relief='raised',
+                                 activebackground=self.colors['surface_hover'],
+                                 activeforeground=self.colors['text'], cursor='hand2', width=3, height=1)
         minimize_btn.place(relx=0.88, rely=0.5, anchor='center')
 
-        # Кнопка закрытия с hover эффектом
         close_btn = tk.Button(self.header, text="✕", command=self.root.destroy,
-                            font=("Segoe UI", 12, "bold"), bg=self.colors['header'],
-                            fg='white', bd=0, activebackground=self.colors['red'],
-                            activeforeground='white', cursor='hand2', width=3, height=1)
+                            font=("Verdana", 12, "bold"), bg=self.colors['red'],
+                            fg=self.colors['text'], bd=2, relief='raised',
+                            activebackground=self.colors['red_hover'],
+                            activeforeground=self.colors['text'], cursor='hand2', width=3, height=1)
         close_btn.place(relx=0.95, rely=0.5, anchor='center')
         
-        # Контент
         content = tk.Frame(main, bg=self.colors['bg'])
         content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
-        # Левая панель
         left = tk.Frame(content, bg=self.colors['bg'])
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 7))
         
-        # Статус с современным дизайном
-        status = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
+        status = tk.Frame(left, bg=self.colors['surface'], relief='ridge', bd=2)
         status.pack(fill=tk.X, pady=(0, 15))
         
-        # Тень для статуса
-        status_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
-        status_shadow.pack(fill=tk.X, pady=(0, 1))
-        
         inner = tk.Frame(status, bg=self.colors['surface'])
-        inner.pack(padx=25, pady=20, fill=tk.X)
+        inner.pack(padx=20, pady=18, fill=tk.X)
         
-        # Иконка статуса
-        status_icon = tk.Label(inner, text="🛡️", font=("Segoe UI", 20), 
-                             bg=self.colors['surface'], fg=self.colors['success'])
+        status_icon = tk.Label(inner, text="🛡", font=("Verdana", 22, "bold"), 
+                             bg=self.colors['surface'], fg=self.colors['accent'])
         status_icon.pack(side=tk.LEFT, padx=(0, 15))
         
-        # Текст статуса
         status_text = tk.Frame(inner, bg=self.colors['surface'])
         status_text.pack(side=tk.LEFT, fill=tk.Y)
         
@@ -198,7 +189,7 @@ class AegisApp:
         
         tk.Label(status_text, text=f"Сигнатур в базе: {self.scanner.sig_db.total_count()}",
                 font=self.fonts['small'], bg=self.colors['surface'],
-                fg=self.colors['text_muted']).pack(anchor='w')
+                fg=self.colors['text_secondary']).pack(anchor='w')
         
         # Анимация сканирования с улучшенным дизайном
         self.animation_canvas = tk.Canvas(left, width=120, height=120, bg=self.colors['bg'], highlightthickness=0)
@@ -212,85 +203,70 @@ class AegisApp:
         tk.Label(scans_frame, text="Сканирование", font=self.fonts['title'],
                 bg=self.colors['bg'], fg=self.colors['text']).pack(anchor='w', pady=(0, 15))
         
-        # Карточки сканирования с улучшенным дизайном
+        # Карточки сканирования с ретро-стилем
         scans = [
-            ("⚡ Быстрая проверка", "Критические области системы", self._quick_scan, self.colors['green'], self.colors['green_hover']),
-            ("🔍 Полная проверка", "Глубокий анализ всех файлов", self._full_scan, self.colors['blue'], self.colors['blue_hover']),
-            ("📁 Проверить файл", "Выборочная проверка файла", self._scan_file, self.colors['orange'], self.colors['orange_hover'])
+            ("⚡", "Быстрая проверка", "Критические области системы", self._quick_scan, self.colors['green'], self.colors['green_hover']),
+            ("🧠", "Полная проверка", "Глубокий анализ всех файлов", self._full_scan, self.colors['blue'], self.colors['blue_hover']),
+            ("📄", "Проверить файл", "Выборочная проверка файла", self._scan_file, self.colors['orange'], self.colors['orange_hover'])
         ]
         
-        for title, desc, cmd, color, hover_color in scans:
-            card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
-            card.pack(fill=tk.X, pady=3)
-            
-            # Тень для карточки
-            card_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
-            card_shadow.pack(fill=tk.X, pady=(0, 1))
+        for badge, title, desc, cmd, color, hover_color in scans:
+            card = tk.Frame(left, bg=self.colors['surface'], relief='ridge', bd=2)
+            card.pack(fill=tk.X, pady=4)
             
             cinner = tk.Frame(card, bg=self.colors['surface'])
-            cinner.pack(fill=tk.X, padx=25, pady=15)
+            cinner.pack(fill=tk.X, padx=18, pady=12)
             
-            # Иконка и текст
-            icon_label = tk.Label(cinner, text=title.split()[0], font=("Segoe UI", 16), 
+            badge_label = tk.Label(cinner, text=badge, font=("Verdana", 18, "bold"), 
                                 bg=self.colors['surface'], fg=color)
-            icon_label.pack(side=tk.LEFT, padx=(0, 15))
+            badge_label.pack(side=tk.LEFT, padx=(0, 15))
             
             text_frame = tk.Frame(cinner, bg=self.colors['surface'])
             text_frame.pack(side=tk.LEFT, fill=tk.Y)
             
-            tk.Label(text_frame, text=title[2:], font=self.fonts['body'],
+            tk.Label(text_frame, text=title, font=self.fonts['body'],
                     bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
             
             tk.Label(text_frame, text=desc, font=self.fonts['small'],
-                    bg=self.colors['surface'], fg=self.colors['text_muted']).pack(anchor='w')
+                    bg=self.colors['surface'], fg=self.colors['text_secondary']).pack(anchor='w')
             
-            # Кнопка с hover эффектом
             btn = tk.Button(cinner, text="Запустить", command=cmd, font=self.fonts['button'],
-                          bg=color, fg='white', bd=0, padx=20, pady=8,
-                          cursor='hand2', relief='flat')
+                          bg=self.colors['border_dark'], fg=self.colors['text'], bd=2,
+                          padx=18, pady=7, cursor='hand2', relief='raised', highlightthickness=0)
             btn.pack(side=tk.RIGHT)
             
-            # Hover эффекты
             def on_enter(e, b=btn, c=color, h=hover_color):
                 b.config(bg=h)
-            def on_leave(e, b=btn, c=color):
+            def on_leave(e, b=btn, c=self.colors['border_dark']):
                 b.config(bg=c)
             
             btn.bind("<Enter>", on_enter)
             btn.bind("<Leave>", on_leave)
         
-        # Быстрые инструменты
-        tools_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
-        tools_card.pack(fill=tk.X, pady=3)
+        tools_card = tk.Frame(left, bg=self.colors['surface'], relief='ridge', bd=2)
+        tools_card.pack(fill=tk.X, pady=4)
 
         tools_inner = tk.Frame(tools_card, bg=self.colors['surface'])
-        tools_inner.pack(fill=tk.X, padx=25, pady=15)
+        tools_inner.pack(fill=tk.X, padx=18, pady=14)
 
         tk.Button(tools_inner, text="Просмотр карантина", command=self._show_quarantine_window,
-                  font=self.fonts['button'], bg=self.colors['purple'], fg='white', bd=0,
-                  padx=16, pady=8, cursor='hand2', relief='flat').pack(side=tk.LEFT, padx=(0, 8))
+                  font=self.fonts['button'], bg=self.colors['purple'], fg=self.colors['text'], bd=2,
+                  padx=16, pady=8, cursor='hand2', relief='raised').pack(side=tk.LEFT, padx=(0, 8))
 
         tk.Button(tools_inner, text="Проверить автозагрузку", command=self._scan_autorun_entries,
-                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
-                  padx=16, pady=8, cursor='hand2', relief='flat').pack(side=tk.LEFT)
+                  font=self.fonts['button'], bg=self.colors['blue'], fg=self.colors['text'], bd=2,
+                  padx=16, pady=8, cursor='hand2', relief='raised').pack(side=tk.LEFT)
 
-        # USB мониторинг с современным дизайном
-        usb_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
-        usb_card.pack(fill=tk.X, pady=3)
-        
-        # Тень для USB карточки
-        usb_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
-        usb_shadow.pack(fill=tk.X, pady=(0, 1))
+        usb_card = tk.Frame(left, bg=self.colors['surface'], relief='ridge', bd=2)
+        usb_card.pack(fill=tk.X, pady=4)
         
         usb_inner = tk.Frame(usb_card, bg=self.colors['surface'])
-        usb_inner.pack(fill=tk.X, padx=25, pady=15)
+        usb_inner.pack(fill=tk.X, padx=18, pady=14)
         
-        # USB иконка
-        usb_icon = tk.Label(usb_inner, text="🔌", font=("Segoe UI", 16), 
+        usb_icon = tk.Label(usb_inner, text="🔌", font=("Verdana", 18, "bold"), 
                           bg=self.colors['surface'], fg=self.colors['purple'])
         usb_icon.pack(side=tk.LEFT, padx=(0, 15))
         
-        # USB текст
         usb_text = tk.Frame(usb_inner, bg=self.colors['surface'])
         usb_text.pack(side=tk.LEFT, fill=tk.Y)
         
@@ -298,15 +274,14 @@ class AegisApp:
                 bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w')
         
         tk.Label(usb_text, text="Автопроверка подключенных устройств", font=self.fonts['small'],
-                bg=self.colors['surface'], fg=self.colors['text_muted']).pack(anchor='w')
+                bg=self.colors['surface'], fg=self.colors['text_secondary']).pack(anchor='w')
         
-        # USB кнопка с hover
         self.usb_button = tk.Button(usb_inner, text="ВКЛ", command=self._toggle_usb_monitoring,
                                   font=self.fonts['button'], bg=self.colors['red'],
-                                  fg='white', bd=0, padx=20, pady=8, cursor='hand2', relief='flat')
+                                  fg=self.colors['text'], bd=2, padx=20, pady=8,
+                                  cursor='hand2', relief='raised', highlightthickness=0)
         self.usb_button.pack(side=tk.RIGHT)
         
-        # Hover для USB кнопки
         def usb_enter(e):
             if self.usb_monitoring:
                 self.usb_button.config(bg=self.colors['green_hover'])
@@ -322,18 +297,13 @@ class AegisApp:
         self.usb_button.bind("<Enter>", usb_enter)
         self.usb_button.bind("<Leave>", usb_leave)
         
-        # Кнопка очистки кэша
-        cache_card = tk.Frame(left, bg=self.colors['surface'], relief='flat', bd=1)
-        cache_card.pack(fill=tk.X, pady=3)
-        
-        cache_shadow = tk.Frame(left, bg=self.colors['shadow'], height=1)
-        cache_shadow.pack(fill=tk.X, pady=(0, 1))
+        cache_card = tk.Frame(left, bg=self.colors['surface'], relief='ridge', bd=2)
+        cache_card.pack(fill=tk.X, pady=4)
         
         cache_inner = tk.Frame(cache_card, bg=self.colors['surface'])
-        cache_inner.pack(fill=tk.X, padx=25, pady=15)
+        cache_inner.pack(fill=tk.X, padx=18, pady=14)
         
-        # Иконка кэша
-        cache_icon = tk.Label(cache_inner, text="🗂️", font=("Segoe UI", 16),
+        cache_icon = tk.Label(cache_inner, text="🧹", font=("Verdana", 18, "bold"),
                             bg=self.colors['surface'], fg=self.colors['blue'])
         cache_icon.pack(side=tk.LEFT, padx=(0, 15))
         
@@ -345,15 +315,13 @@ class AegisApp:
         
         tk.Label(cache_text, text="Очистить кэш приложений и временные файлы",
                 font=self.fonts['small'], bg=self.colors['surface'],
-                fg=self.colors['text_muted']).pack(anchor='w')
+                fg=self.colors['text_secondary']).pack(anchor='w')
         
-        # Кнопка очистки кэша
         cache_btn = tk.Button(cache_inner, text="Очистить", command=self._clear_cache,
-                            font=self.fonts['button'], bg=self.colors['blue'], fg='white',
-                            bd=0, padx=20, pady=8, cursor='hand2', relief='flat')
+                            font=self.fonts['button'], bg=self.colors['blue'], fg=self.colors['text'], bd=2,
+                            padx=20, pady=8, cursor='hand2', relief='raised', highlightthickness=0)
         cache_btn.pack(side=tk.RIGHT)
         
-        # Hover эффекты для кнопки кэша
         def cache_enter(e):
             cache_btn.config(bg=self.colors['blue_hover'])
         def cache_leave(e):
@@ -361,62 +329,69 @@ class AegisApp:
         
         cache_btn.bind("<Enter>", cache_enter)
         cache_btn.bind("<Leave>", cache_leave)
+
+        # Правая панель - лог + список угроз в ретро-стиле
+        right = tk.Frame(content, bg=self.colors['surface'], relief='flat', bd=0, width=620)
+        right.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
+        right.pack_propagate(False)
         
-        # Правая панель - лог + список угроз с современным дизайном
-        right = tk.Frame(content, bg=self.colors['surface'])
-        right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
-        
-        # Список угроз с улучшенным дизайном
         threats_frame = tk.Frame(right, bg=self.colors['surface'])
         threats_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(15, 0))
         
-        # Заголовок угроз
         threats_header = tk.Frame(threats_frame, bg=self.colors['surface'])
         threats_header.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(threats_header, text="🚨", font=("Segoe UI", 16), 
+        tk.Label(threats_header, text="⚠️", font=("Verdana", 16, "bold"), 
                 bg=self.colors['surface'], fg=self.colors['error']).pack(side=tk.LEFT)
         
-        tk.Label(threats_header, text="Обнаруженные угрозы", font=self.fonts['title'],
-                bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
+        tk.Label(threats_header, text="Обнаруженные угрозы", font=("Verdana", 14, "bold"),
+            bg=self.colors['surface'], fg=self.colors['text']).pack(side=tk.LEFT, padx=10)
         
         tk.Button(threats_header, text="Экспорт", command=self._export_threats_list,
-                 font=self.fonts['small'], bg=self.colors['surface'],
-                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
+             font=self.fonts['small'], bg=self.colors['surface'],
+             fg=self.colors['text_secondary'], bd=2, relief='raised', cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
         tk.Button(threats_header, text="Просмотр", command=self._show_suspicious_files_window,
-                 font=self.fonts['small'], bg=self.colors['surface'],
-                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
+             font=self.fonts['small'], bg=self.colors['surface'],
+             fg=self.colors['text_secondary'], bd=2, relief='raised', cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
+        tk.Button(threats_header, text="Развернуть", command=lambda: self._open_large_threats_window(),
+             font=self.fonts['small'], bg=self.colors['surface'],
+             fg=self.colors['text_secondary'], bd=2, relief='raised', cursor='hand2').pack(side=tk.RIGHT, padx=(0, 5))
         tk.Button(threats_header, text="Очистить", command=self._clear_threats_list,
-                 font=self.fonts['small'], bg=self.colors['surface'],
-                 fg=self.colors['text_muted'], bd=0, cursor='hand2').pack(side=tk.RIGHT)
+             font=self.fonts['small'], bg=self.colors['surface'],
+             fg=self.colors['text_secondary'], bd=2, relief='raised', cursor='hand2').pack(side=tk.RIGHT)
 
-        self.pie_canvas = tk.Canvas(threats_frame, height=160, bg=self.colors['surface'], highlightthickness=0)
+        self.pie_canvas = tk.Canvas(threats_frame, width=580, height=200, bg=self.colors['surface'], highlightthickness=0)
         self.pie_canvas.pack(fill=tk.X, pady=(0, 10), padx=20)
 
-        # Список угроз
-        list_frame = tk.Frame(threats_frame, bg=self.colors['surface'], relief='sunken', bd=1)
+        list_frame = tk.Frame(threats_frame, bg=self.colors['surface'], relief='flat', bd=0)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
         self.threats_listbox = tk.Listbox(
             list_frame,
-            height=8,  # Увеличена высота
+            height=8,
             bg=self.colors['console_bg'],
             fg=self.colors['console_fg'],
-            selectbackground=self.colors['blue'],
-            selectforeground='white',
+            selectbackground=self.colors['purple'],
+            selectforeground=self.colors['surface'],
             bd=0,
             relief='flat',
+            highlightthickness=0,
             font=self.fonts['console']
         )
         self.threats_listbox.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=2, pady=(2, 0))
+        # Enable mouse wheel scrolling for the listbox
+        try:
+            self._bind_mousewheel(self.threats_listbox)
+        except Exception:
+            pass
         
         threats_scroll = tk.Scrollbar(list_frame, command=self.threats_listbox.yview,
-                                     bg=self.colors['border'], troughcolor=self.colors['surface'])
+                                     bg=self.colors['border_dark'], troughcolor=self.colors['surface'])
         threats_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         
         threats_xscroll = tk.Scrollbar(list_frame, orient=tk.HORIZONTAL,
                                       command=self.threats_listbox.xview,
-                                      bg=self.colors['border'], troughcolor=self.colors['surface'])
+                                      bg=self.colors['border_dark'], troughcolor=self.colors['surface'])
         threats_xscroll.pack(side=tk.BOTTOM, fill=tk.X)
         
         self.threats_listbox.config(yscrollcommand=threats_scroll.set, xscrollcommand=threats_xscroll.set)
@@ -430,11 +405,9 @@ class AegisApp:
         self.threats_context_menu.add_command(label="В карантин", command=self._send_selected_to_quarantine)
         self.threats_context_menu.add_command(label="Проверить подпись Microsoft", command=self._check_selected_signature)
         
-        # Устанавливаем активный список по умолчанию
         self.active_threats_listbox = self.threats_listbox
 
-        # Футер с градиентом
-        footer = tk.Frame(main, bg=self.colors['header'], height=40)
+        footer = tk.Frame(main, bg=self.colors['header'], height=40, relief='raised', bd=2)
         footer.pack(fill=tk.X)
         footer.pack_propagate(False)
 
@@ -511,14 +484,14 @@ class AegisApp:
         header.pack_propagate(False)
         tk.Label(header, text="Карантин", font=self.fonts['header'], bg=self.colors['header'], fg='white').pack(anchor='w', padx=20, pady=15)
 
-        frame = tk.Frame(window, bg=self.colors['surface'])
+        frame = tk.Frame(window, bg=self.colors['surface'], relief='ridge', bd=2)
         frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
         quarantine_list = tk.Listbox(frame, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
-                                    selectbackground=self.colors['blue'], selectforeground='white', font=self.fonts['console'], bd=0)
+                                    selectbackground=self.colors['purple'], selectforeground=self.colors['surface'], font=self.fonts['console'], bd=2, relief='ridge')
         quarantine_list.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(0, 10))
 
-        scrollbar = tk.Scrollbar(frame, command=quarantine_list.yview)
+        scrollbar = tk.Scrollbar(frame, command=quarantine_list.yview, bg=self.colors['border_dark'], troughcolor=self.colors['surface'])
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         quarantine_list.config(yscrollcommand=scrollbar.set)
 
@@ -528,6 +501,11 @@ class AegisApp:
                 quarantine_list.insert(tk.END, path)
         else:
             quarantine_list.insert(tk.END, 'Карантин пуст')
+
+        try:
+            self._bind_mousewheel(quarantine_list)
+        except Exception:
+            pass
 
         buttons = tk.Frame(window, bg=self.colors['bg'])
         buttons.pack(fill=tk.X, padx=15, pady=(0, 15))
@@ -555,34 +533,46 @@ class AegisApp:
                 messagebox.showerror('Ошибка', 'Не удалось удалить файл из карантина')
 
         tk.Button(buttons, text='Открыть папку', command=open_selected_quarantine,
-                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
+                  font=self.fonts['button'], bg=self.colors['blue'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
         tk.Button(buttons, text='Удалить из карантина', command=delete_selected_quarantine,
-                  font=self.fonts['button'], bg=self.colors['red'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+                  font=self.fonts['button'], bg=self.colors['red'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
 
     def _show_suspicious_files_window(self):
         window = tk.Toplevel(self.root)
         window.title("Подозрительные файлы")
-        window.geometry("760x480")
+        window.geometry("1050x680")
+        window.minsize(940, 560)
         window.configure(bg=self.colors['bg'])
+        window.resizable(True, True)
 
-        header = tk.Frame(window, bg=self.colors['header'], height=60)
+        header = tk.Frame(window, bg=self.colors['header'], height=62, relief='raised', bd=2)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         tk.Label(header, text="⚠️ Подозрительные файлы", font=self.fonts['header'],
-                 bg=self.colors['header'], fg='white').pack(anchor='w', padx=20, pady=15)
+                 bg=self.colors['header'], fg=self.colors['text']).pack(anchor='w', padx=20, pady=16)
 
-        frame = tk.Frame(window, bg=self.colors['surface'])
-        frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        content_frame = tk.Frame(window, bg=self.colors['surface'], relief='ridge', bd=2)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
-        suspicious_list = tk.Listbox(frame, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
-                                     selectbackground=self.colors['blue'], selectforeground='white',
-                                     font=self.fonts['console'], bd=0, relief='flat')
-        suspicious_list.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(0, 10))
+        left_panel = tk.Frame(content_frame, bg=self.colors['surface'])
+        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        scrollbar = tk.Scrollbar(frame, command=suspicious_list.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        right_panel = tk.Frame(content_frame, bg=self.colors['surface'])
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+
+        tk.Label(left_panel, text="Список угроз", font=self.fonts['body'],
+                 bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w', padx=12, pady=(8, 6))
+
+        suspicious_list = tk.Listbox(left_panel, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
+                                     selectbackground=self.colors['purple'], selectforeground=self.colors['surface'],
+                                     font=self.fonts['console'], bd=2, relief='ridge', activestyle='none')
+        suspicious_list.pack(fill=tk.BOTH, expand=True, side=tk.LEFT, padx=(12, 0), pady=(0, 8))
+
+        scrollbar = tk.Scrollbar(left_panel, command=suspicious_list.yview,
+                                 bg=self.colors['border_dark'], troughcolor=self.colors['surface'])
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=(0, 8), padx=(0, 12))
         suspicious_list.config(yscrollcommand=scrollbar.set)
 
         for item in self.threats_listbox.get(0, tk.END):
@@ -590,32 +580,68 @@ class AegisApp:
         if suspicious_list.size() == 0:
             suspicious_list.insert(tk.END, 'Угроз не обнаружено')
 
+        try:
+            self._bind_mousewheel(suspicious_list)
+        except Exception:
+            pass
+
+        tk.Label(right_panel, text="Информация", font=self.fonts['body'],
+                 bg=self.colors['surface'], fg=self.colors['text']).pack(anchor='w', padx=12, pady=(8, 6))
+
+        details_text = tk.Text(right_panel, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
+                                font=self.fonts['console'], bd=2, relief='ridge', wrap='word', height=12)
+        details_text.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 8))
+        details_text.insert(tk.END, "Выберите угрозу в списке, чтобы увидеть путь файла и дополнительные сведения.")
+        details_text.config(state=tk.DISABLED)
+
+        summary_label = tk.Label(right_panel, text=f"Всего угроз: {max(0, suspicious_list.size() - (1 if suspicious_list.get(0) == 'Угроз не обнаружено' else 0))}",
+                                 font=self.fonts['small'], bg=self.colors['surface'], fg=self.colors['text_secondary'])
+        summary_label.pack(anchor='w', padx=12, pady=(0, 8))
+
+        def update_details(event=None):
+            selection = suspicious_list.curselection()
+            if not selection:
+                return
+            value = suspicious_list.get(selection[0])
+            details_text.config(state=tk.NORMAL)
+            details_text.delete('1.0', tk.END)
+            if value == 'Угроз не обнаружено':
+                details_text.insert(tk.END, "Список не содержит обнаруженных угроз.")
+            else:
+                details_text.insert(tk.END, f"{value}\n\n")
+                if ' — ' in value:
+                    path, threat = value.split(' — ', 1)
+                    details_text.insert(tk.END, f"Файл: {path}\n")
+                    details_text.insert(tk.END, f"Обнаруженная угроза: {threat}\n")
+            details_text.config(state=tk.DISABLED)
+
         def open_selected_from_window(event):
             self.active_threats_listbox = suspicious_list
             self._open_selected_threat_location()
 
-        suspicious_list.bind("<Double-Button-1>", open_selected_from_window)
-        suspicious_list.bind("<Button-3>", self._show_threats_context_menu)
+        suspicious_list.bind('<<ListboxSelect>>', update_details)
+        suspicious_list.bind('<Double-Button-1>', open_selected_from_window)
+        suspicious_list.bind('<Button-3>', self._show_threats_context_menu)
         self.threats_listbox_window = suspicious_list
 
         buttons = tk.Frame(window, bg=self.colors['bg'])
         buttons.pack(fill=tk.X, padx=15, pady=(0, 15))
 
         tk.Button(buttons, text='Открыть папку', command=self._open_selected_threat_location,
-                  font=self.fonts['button'], bg=self.colors['blue'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
+                  font=self.fonts['button'], bg=self.colors['blue'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT)
         tk.Button(buttons, text='В карантин', command=self._send_selected_to_quarantine,
-                  font=self.fonts['button'], bg=self.colors['purple'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+                  font=self.fonts['button'], bg=self.colors['purple'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
         tk.Button(buttons, text='Лечить', command=self._heal_selected_threat,
-                  font=self.fonts['button'], bg=self.colors['orange'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+                  font=self.fonts['button'], bg=self.colors['orange'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
         tk.Button(buttons, text='Удалить', command=self._delete_selected_threat,
-                  font=self.fonts['button'], bg=self.colors['red'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+                  font=self.fonts['button'], bg=self.colors['red'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
         tk.Button(buttons, text='Проверить подпись', command=self._check_selected_signature,
-                  font=self.fonts['button'], bg=self.colors['green'], fg='white', bd=0,
-                  padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
+                  font=self.fonts['button'], bg=self.colors['green'], fg=self.colors['text'], bd=2,
+                  relief='raised', padx=15, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(10, 0))
 
     def _is_system_file(self, filepath):
         try:
@@ -733,7 +759,7 @@ class AegisApp:
             return
         self._draw_header_gradient(self.header_canvas, 60)
         self.header_canvas.delete("header_text")
-        self.header_canvas.create_text(30, 22, text="🛡️ AEGIS CORE",
+        self.header_canvas.create_text(30, 22, text="AEGIS CORE",
                                 font=self.fonts['header'], fill='white', anchor='w', tags="header_text")
         self.header_canvas.create_text(30, 42, text="Антивирусная защита",
                                 font=self.fonts['subtitle'], fill='#94a3b8', anchor='w', tags="header_text")
@@ -795,7 +821,8 @@ class AegisApp:
             counts[threat_type] = counts.get(threat_type, 0) + 1
 
         if not counts:
-            self.pie_canvas.create_text(550, 80, text='Нет обнаруженных угроз',
+            width = self.pie_canvas.winfo_width() or int(self.pie_canvas['width'])
+            self.pie_canvas.create_text(width // 2, 80, text='Нет обнаруженных угроз',
                                         font=self.fonts['body'], fill=self.colors['text_muted'])
             return
 
@@ -803,24 +830,132 @@ class AegisApp:
         start_angle = 0
         colors = [self.colors['red'], self.colors['orange'], self.colors['blue'], self.colors['green'], self.colors['purple']]
 
-        legend_x = 420
+        # Dynamic layout based on canvas width
+        width = self.pie_canvas.winfo_width() or int(self.pie_canvas['width'])
+        pie_left = 20
+        pie_top = 20
+        pie_right = pie_left + 220
+        pie_bottom = pie_top + 160
+        legend_x = pie_right + 30
         legend_y = 20
         for index, (threat_type, value) in enumerate(counts.items()):
             extent = int(360 * (value / total))
-            self.pie_canvas.create_arc(20, 20, 220, 180, start=start_angle,
+            self.pie_canvas.create_arc(pie_left, pie_top, pie_right, pie_bottom, start=start_angle,
                                        extent=extent, fill=colors[index % len(colors)], outline='')
-            self.pie_canvas.create_rectangle(legend_x, legend_y + index * 20,
-                                            legend_x + 12, legend_y + index * 20 + 12,
+            self.pie_canvas.create_rectangle(legend_x, legend_y + index * 22,
+                                            legend_x + 14, legend_y + index * 22 + 14,
                                             fill=colors[index % len(colors)], outline='')
-            self.pie_canvas.create_text(legend_x + 22, legend_y + index * 20 + 6,
+            self.pie_canvas.create_text(legend_x + 20, legend_y + index * 22 + 7,
                                        text=f"{threat_type} ({value})",
                                        anchor='w', font=self.fonts['small'], fill=self.colors['text'])
             start_angle += extent
 
-        self.pie_canvas.create_text(120, 90, text='Типы угроз', font=self.fonts['title'], fill=self.colors['text'])
+        # Title removed as per user request
 
     def _update_threat_pie_chart(self):
         self._safe_ui(lambda: self._draw_threat_pie_chart())
+
+    def _open_large_threats_window(self):
+        """Открыть безрамочное большое окно со списком обнаруженных угроз"""
+        try:
+            w = tk.Toplevel(self.root)
+            w.overrideredirect(True)
+            w.configure(bg=self.colors['bg'])
+
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            width = int(sw * 0.85)
+            height = int(sh * 0.8)
+            x = (sw - width) // 2
+            y = (sh - height) // 2
+            w.geometry(f"{width}x{height}+{x}+{y}")
+
+            header = tk.Frame(w, bg=self.colors['header'], height=56)
+            header.pack(fill=tk.X)
+            header.pack_propagate(False)
+            tk.Label(header, text="Обнаруженные угрозы — Развернуто", font=self.fonts['header'],
+                     bg=self.colors['header'], fg=self.colors['text']).pack(side=tk.LEFT, padx=20)
+            tk.Button(header, text="✕", command=w.destroy, font=("Verdana", 12, "bold"), bg=self.colors['red'], fg=self.colors['text'], bd=0, relief='flat', cursor='hand2').pack(side=tk.RIGHT, padx=12, pady=8)
+
+            frame = tk.Frame(w, bg=self.colors['surface'])
+            frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=16)
+
+            large_list = tk.Listbox(frame, bg=self.colors['console_bg'], fg=self.colors['console_fg'],
+                                    font=self.fonts['console'], bd=0, relief='flat', highlightthickness=0)
+            large_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+            try:
+                self._bind_mousewheel(large_list)
+            except Exception:
+                pass
+
+            scrollbar = tk.Scrollbar(frame, command=large_list.yview)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            large_list.config(yscrollcommand=scrollbar.set)
+
+            # populate
+            for i in range(self.threats_listbox.size()):
+                large_list.insert(tk.END, self.threats_listbox.get(i))
+
+            def on_double(e):
+                try:
+                    sel = large_list.curselection()
+                    if not sel:
+                        return
+                    item = large_list.get(sel[0])
+                    # reuse existing opener by setting active listbox
+                    self.active_threats_listbox = large_list
+                    # temporarily insert item into a hidden listbox to parse path, or reuse logic
+                    if " — " in item:
+                        path = item.split(" — ", 1)[0].strip()
+                        if os.path.exists(path):
+                            os.startfile(os.path.dirname(path))
+                        else:
+                            messagebox.showerror('Ошибка', 'Файл не найден')
+                except Exception:
+                    pass
+
+            def on_right(e):
+                try:
+                    self.active_threats_listbox = large_list
+                    large_list.selection_clear(0, tk.END)
+                    large_list.selection_set(large_list.nearest(e.y))
+                    self.threats_context_menu.post(e.x_root, e.y_root)
+                except Exception:
+                    pass
+
+            large_list.bind('<Double-Button-1>', on_double)
+            large_list.bind('<Button-3>', on_right)
+
+        except Exception:
+            pass
+
+    def _on_mousewheel(self, event, widget):
+        try:
+            if os.name == 'nt':
+                # Windows: event.delta is multiple of 120
+                delta = -1 * int(event.delta / 120)
+            else:
+                # Linux/Unix: use button 4/5
+                if hasattr(event, 'num'):
+                    delta = 1 if event.num == 5 else -1
+                else:
+                    delta = 0
+            widget.yview_scroll(delta, 'units')
+        except Exception:
+            pass
+
+    def _bind_mousewheel(self, widget):
+        try:
+            # Ensure widget receives focus on enter so wheel events target it
+            widget.bind('<Enter>', lambda e: widget.focus_set())
+            if os.name == 'nt':
+                widget.bind('<MouseWheel>', lambda e, w=widget: self._on_mousewheel(e, w))
+            else:
+                widget.bind('<Button-4>', lambda e, w=widget: self._on_mousewheel(e, w))
+                widget.bind('<Button-5>', lambda e, w=widget: self._on_mousewheel(e, w))
+        except Exception:
+            pass
 
     def _send_selected_to_quarantine(self):
         path = self._get_selected_threat_path()
@@ -1007,9 +1142,9 @@ class AegisApp:
     
     def _welcome(self):
         """Приветствие"""
-        self._log("🛡️ Aegis Core запущен")
+        self._log("Aegis Core запущен")
         self._log(f"Сигнатур: {self.scanner.sig_db.total_count()}")
-        self._log("✅ Готов к работе")
+        self._log("Готов к работе")
         self._log("=" * 50)
     
     def _safe_ui(self, func, *args, **kwargs):
@@ -1143,7 +1278,7 @@ class AegisApp:
         
         if new_devices:
             for device in new_devices:
-                self._log(f"🔌 USB устройство подключено: {device}")
+                self._log(f"USB устройство подключено: {device}")
                 self._play_sound("usb_detected")
                 
                 # Автоматическая проверка USB
@@ -1160,21 +1295,21 @@ class AegisApp:
         try:
             device_path = f"{device_id}\\"
             if os.path.exists(device_path):
-                self._log(f"🔍 Автоматическая проверка USB: {device_path}")
+                self._log(f"Автоматическая проверка USB: {device_path}")
                 
                 # Быстрая проверка USB
                 scan_data = self.scanner.scan_directory(device_path, 2, 200)
                 
                 if scan_data['results']:
-                    self._log(f"⚠️ Найдены угрозы на USB: {len(scan_data['results'])}")
+                    self._log(f"Найдены угрозы на USB: {len(scan_data['results'])}")
                     for r in scan_data['results']:
                         self._log(f"   └─ {r['filepath']} — {r['threat_name']}")
                         self._add_threat_file(r['filepath'], r['threat_name'])
                         self._play_sound("threat")
                 else:
-                    self._log("✅ USB устройство чистое")
+                    self._log("USB устройство чистое")
         except Exception as e:
-            self._log(f"❌ Ошибка проверки USB: {e}")
+            self._log(f"Ошибка проверки USB: {e}")
     
     def _toggle_usb_monitoring(self):
         """Включение/выключение мониторинга USB"""
@@ -1188,10 +1323,10 @@ class AegisApp:
             self.last_usb_devices = self._get_usb_devices()
             self._check_usb_devices()
             self.usb_button.config(text="ВЫКЛ", bg=self.colors['green'])
-            self._log("🔌 Мониторинг USB включен")
+            self._log("Мониторинг USB включен")
         else:
             self.usb_button.config(text="ВКЛ", bg=self.colors['red'])
-            self._log("🔌 Мониторинг USB выключен")
+            self._log("Мониторинг USB выключен")
     
     def _quick_scan(self):
         """Быстрая проверка"""
@@ -1206,7 +1341,7 @@ class AegisApp:
         self._start_animation()
         
         self._log("=" * 50)
-        self._log("⚡ БЫСТРАЯ ПРОВЕРКА")
+        self._log("БЫСТРАЯ ПРОВЕРКА")
         
         temp_path = os.environ.get('TEMP', '') or os.environ.get('TMP', '')
         download_path = Path.home() / "Downloads"
