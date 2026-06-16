@@ -24,6 +24,7 @@ class MainWindow:
         self.root.title("Aegis Core - Антивирусная защита")
         self.root.geometry("1050x680")
         self.root.configure(bg='#f0f2f5')
+        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
         
         # Инициализация компонентов
         self.signature_db = SignatureDatabase()
@@ -98,13 +99,14 @@ class MainWindow:
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         
-        tk.Label(
+        title_label = tk.Label(
             header,
             text="🛡️ AEGIS CORE",
             font=("Segoe UI", 18, "bold"),
             bg=self.colors['header'],
             fg='white'
-        ).pack(side=tk.LEFT, padx=20, pady=12)
+        )
+        title_label.pack(side=tk.LEFT, padx=20, pady=12)
         
         tk.Label(
             header,
@@ -113,6 +115,23 @@ class MainWindow:
             bg=self.colors['header'],
             fg='#95a5a6'
         ).pack(side=tk.LEFT, pady=12)
+
+        close_button = tk.Button(
+            header,
+            text='✕',
+            font=("Segoe UI", 10, "bold"),
+            bg=self.colors['header'],
+            fg='white',
+            activebackground='#e74c3c',
+            activeforeground='white',
+            bd=0,
+            padx=10,
+            pady=5,
+            cursor='hand2',
+            command=self.root.destroy,
+            highlightthickness=0
+        )
+        close_button.pack(side=tk.RIGHT, padx=15, pady=8)
     
     def _create_status_panel(self, parent):
         """Создание панели статуса"""
