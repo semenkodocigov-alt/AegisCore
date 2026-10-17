@@ -1,6 +1,6 @@
 """
 Модуль управления базой сигнатур вредоносных программ
-Поддерживает MD5, SHA1, SHA256 хеши
+Поддерживает MD5, SHA1, SHA256 хеши тестовая ветка
 """
 
 import os
@@ -50,12 +50,12 @@ class SignatureDatabase:
                 "severity": "critical",
                 "description": "Банковский троян, крадущий данные"
             },
-            # FakeAV
-            "d41d8cd98f00b204e9800998ecf8427e": {
-                "name": "FakeAV.SecurityTool",
-                "type": "scareware",
-                "severity": "high",
-                "description": "Поддельный антивирус-вымогатель"
+            # EICAR Test
+            "44d88612fea8a8f36de82e1278abb02f": {
+                "name": "EICAR.StandardAntivirusTest",
+                "type": "test_virus",
+                "severity": "medium",
+                "description": "Тестовый сигнатурный файл EICAR"
             }
         }
         
@@ -130,7 +130,7 @@ class SignatureDatabase:
         except Exception as e:
             print(f"Не удалось создать файл {filepath}: {e}")
     
-    def check_hash(self, md5: str = None, sha1: str = None, sha256: str = None) -> Optional[dict]:
+    def check_hash(self, md5: str = None, sha1: str = None, sha256: str = None, *args, **kwargs) -> Optional[dict]:
         """
         Проверка хеша в базе сигнатур
         

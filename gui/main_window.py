@@ -9,11 +9,16 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from core.checker import FileScanner
-from core.signatures import SignatureDatabase
-from core.analyzer import FileAnalyzer
-from core.quarantine import QuarantineManager
-from utils.hash_utils import HashCalculator
+from scanner import FileScanner
+from analyzer import FileAnalyzer
+from quarantine import QuarantineManager
+from hash_utils import calculate_all as HashCalculator
+from config import get_config
+cfg = get_config()
+if cfg.is_using_improved_signatures():
+    from signatures_improved import SignatureDatabase
+else:
+    from signatures import SignatureDatabase
 
 
 class MainWindow:
@@ -99,6 +104,44 @@ class MainWindow:
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         
+        # Левая панель с кнопками управления окном
+        buttons_frame = tk.Frame(header, bg=self.colors['header'])
+        buttons_frame.pack(side=tk.LEFT, padx=10, pady=8)
+        
+        minimize_button = tk.Button(
+            buttons_frame,
+            text='−',
+            font=("Segoe UI", 12, "bold"),
+            bg=self.colors['header'],
+            fg='white',
+            activebackground='#3498db',
+            activeforeground='white',
+            bd=0,
+            padx=8,
+            pady=2,
+            cursor='hand2',
+            command=self.root.iconify,
+            highlightthickness=0
+        )
+        minimize_button.pack(side=tk.LEFT, padx=3)
+        
+        close_button = tk.Button(
+            buttons_frame,
+            text='✕',
+            font=("Segoe UI", 10, "bold"),
+            bg=self.colors['header'],
+            fg='white',
+            activebackground='#e74c3c',
+            activeforeground='white',
+            bd=0,
+            padx=10,
+            pady=2,
+            cursor='hand2',
+            command=self.root.destroy,
+            highlightthickness=0
+        )
+        close_button.pack(side=tk.LEFT, padx=3)
+        
         title_label = tk.Label(
             header,
             text="🛡️ AEGIS CORE",
@@ -115,23 +158,6 @@ class MainWindow:
             bg=self.colors['header'],
             fg='#95a5a6'
         ).pack(side=tk.LEFT, pady=12)
-
-        close_button = tk.Button(
-            header,
-            text='✕',
-            font=("Segoe UI", 10, "bold"),
-            bg=self.colors['header'],
-            fg='white',
-            activebackground='#e74c3c',
-            activeforeground='white',
-            bd=0,
-            padx=10,
-            pady=5,
-            cursor='hand2',
-            command=self.root.destroy,
-            highlightthickness=0
-        )
-        close_button.pack(side=tk.RIGHT, padx=15, pady=8)
     
     def _create_status_panel(self, parent):
         """Создание панели статуса"""

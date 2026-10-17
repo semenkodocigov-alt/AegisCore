@@ -1,12 +1,3 @@
-tkinter
 wmi
+pywebview>=5.0
 requests>=2.25.0
-hashlib
-os
-pathlib
-datetime
-threading
-time
-math
-shutil
-json

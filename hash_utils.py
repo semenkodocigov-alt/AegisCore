@@ -1,36 +1,171 @@
-"""Вычисление хешей файлов через C++ (CryptoAPI)"""
-import ctypes
+"""File hash computation: single-pass multi-algorithm hashing.
+
+Primary implementation uses Python's hashlib (fast, cross-platform).
+CryptoAPI (advapi32) is available as an optional fallback on Windows.
+"""
+import hashlib
+import logging
 import os
+from typing import Dict, Optional
 
-# Загрузка advapi32.dll
-advapi32 = ctypes.windll.advapi32
+logger = logging.getLogger(__name__)
 
-# Константы
-PROV_RSA_FULL = 1
-PROV_RSA_AES = 24
-CRYPT_VERIFYCONTEXT = 0xF0000000
-CALG_MD5 = 0x00008003
-CALG_SHA_256 = 0x0000800c
-HP_HASHVAL = 0x0002
+# I/O chunk size: 64KB balances syscall overhead vs memory usage
+_CHUNK_SIZE: int = 65536
 
-def calculate_md5(filepath):
-    """MD5 хеш файла через CryptoAPI"""
+
+# ---------------------------------------------------------------------------
+# Primary: Python hashlib (works on all platforms, handles files >2GB)
+# ---------------------------------------------------------------------------
+
+def calculate_all(filepath: str) -> Dict[str, Optional[str]]:
+    """Compute MD5, SHA-1, and SHA-256 in a single pass over the file.
+
+    Reads the file once and feeds each chunk to all three hashers
+    simultaneously for maximum I/O efficiency.
+
+    Returns a dict with keys 'md5', 'sha1', 'sha256'.
+    Values are hex-digest strings, or None on error.
+    """
+    md5 = hashlib.md5()
+    sha1 = hashlib.sha1()
+    sha256 = hashlib.sha256()
+
     try:
-        hProv = ctypes.c_void_p()
-        hHash = ctypes.c_void_p()
-        rgbHash = (ctypes.c_byte * 16)()
-        cbHash = ctypes.c_uint(16)
+        with open(filepath, 'rb') as f:
+            while True:
+                chunk = f.read(_CHUNK_SIZE)
+                if not chunk:
+                    break
+                md5.update(chunk)
+                sha1.update(chunk)
+                sha256.update(chunk)
 
-        if not advapi32.CryptAcquireContextA(ctypes.byref(hProv), None, None, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT):
+        return {
+            'md5': md5.hexdigest(),
+            'sha1': sha1.hexdigest(),
+            'sha256': sha256.hexdigest(),
+        }
+    except PermissionError:
+        logger.warning("Permission denied hashing file: %s", filepath)
+        return {'md5': None, 'sha1': None, 'sha256': None}
+    except FileNotFoundError:
+        logger.warning("File not found for hashing: %s", filepath)
+        return {'md5': None, 'sha1': None, 'sha256': None}
+    except OSError as e:
+        logger.error("OS error hashing file %s: %s", filepath, e)
+        return {'md5': None, 'sha1': None, 'sha256': None}
+
+
+def calculate_md5(filepath: str) -> Optional[str]:
+    """Compute MD5 hash of a file.
+
+    Uses hashlib as primary. Falls back to CryptoAPI on Windows if
+    hashlib is unavailable for some reason.
+    """
+    try:
+        h = hashlib.md5()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(_CHUNK_SIZE), b''):
+                h.update(chunk)
+        return h.hexdigest()
+    except (OSError, ValueError) as e:
+        logger.debug("hashlib MD5 failed for %s: %s, trying CryptoAPI", filepath, e)
+        return _cryptoapi_md5(filepath)
+
+
+def calculate_sha1(filepath: str) -> Optional[str]:
+    """Compute SHA-1 hash of a file."""
+    try:
+        h = hashlib.sha1()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(_CHUNK_SIZE), b''):
+                h.update(chunk)
+        return h.hexdigest()
+    except (OSError, ValueError) as e:
+        logger.error("SHA-1 hashing failed for %s: %s", filepath, e)
+        return None
+
+
+def calculate_sha256(filepath: str) -> Optional[str]:
+    """Compute SHA-256 hash of a file.
+
+    Uses hashlib as primary. Falls back to CryptoAPI on Windows if
+    hashlib is unavailable for some reason.
+    """
+    try:
+        h = hashlib.sha256()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(_CHUNK_SIZE), b''):
+                h.update(chunk)
+        return h.hexdigest()
+    except (OSError, ValueError) as e:
+        logger.debug("hashlib SHA-256 failed for %s: %s, trying CryptoAPI", filepath, e)
+        return _cryptoapi_sha256(filepath)
+
+
+# ---------------------------------------------------------------------------
+# Fallback: Windows CryptoAPI via ctypes (optional)
+# ---------------------------------------------------------------------------
+
+def _load_advapi32():
+    """Lazily load advapi32.dll. Returns the dll handle or None."""
+    try:
+        import ctypes
+        return ctypes.windll.advapi32
+    except (AttributeError, OSError):
+        return None
+
+
+# CryptoAPI constants
+_PROV_RSA_FULL: int = 1
+_PROV_RSA_AES: int = 24
+_CRYPT_VERIFYCONTEXT: int = 0xF0000000
+_CALG_MD5: int = 0x00008003
+_CALG_SHA_256: int = 0x0000800c
+_HP_HASHVAL: int = 0x0002
+
+
+def _cryptoapi_hash(
+    filepath: str,
+    algorithm: int,
+    provider_type: int,
+    digest_size: int
+) -> Optional[str]:
+    """Generic CryptoAPI file hashing. Internal helper.
+
+    Args:
+        filepath: Path to the file to hash.
+        algorithm: CALG_* constant for the hash algorithm.
+        provider_type: PROV_RSA_* constant.
+        digest_size: Expected digest length in bytes (16 for MD5, 32 for SHA-256).
+
+    Returns hex digest string or None on failure.
+    """
+    advapi32 = _load_advapi32()
+    if advapi32 is None:
+        return None
+
+    import ctypes
+
+    hProv = ctypes.c_void_p()
+    hHash = ctypes.c_void_p()
+    rgbHash = (ctypes.c_byte * digest_size)()
+    cbHash = ctypes.c_uint(digest_size)
+
+    try:
+        if not advapi32.CryptAcquireContextA(
+            ctypes.byref(hProv), None, None, provider_type, _CRYPT_VERIFYCONTEXT
+        ):
             return None
 
-        if not advapi32.CryptCreateHash(hProv, CALG_MD5, 0, 0, ctypes.byref(hHash)):
+        if not advapi32.CryptCreateHash(hProv, algorithm, 0, 0, ctypes.byref(hHash)):
             advapi32.CryptReleaseContext(hProv, 0)
             return None
 
         with open(filepath, 'rb') as f:
             while True:
-                chunk = f.read(8192)
+                chunk = f.read(_CHUNK_SIZE)
                 if not chunk:
                     break
                 if not advapi32.CryptHashData(hHash, chunk, len(chunk), 0):
@@ -38,73 +173,35 @@ def calculate_md5(filepath):
                     advapi32.CryptReleaseContext(hProv, 0)
                     return None
 
-        if not advapi32.CryptGetHashParam(hHash, HP_HASHVAL, ctypes.byref(rgbHash), ctypes.byref(cbHash), 0):
+        if not advapi32.CryptGetHashParam(
+            hHash, _HP_HASHVAL, ctypes.byref(rgbHash), ctypes.byref(cbHash), 0
+        ):
             advapi32.CryptDestroyHash(hHash)
             advapi32.CryptReleaseContext(hProv, 0)
             return None
 
         hex_hash = ''.join(f'{b & 0xff:02x}' for b in rgbHash)
-
-        advapi32.CryptDestroyHash(hHash)
-        advapi32.CryptReleaseContext(hProv, 0)
         return hex_hash
-    except:
+
+    except (OSError, ValueError) as e:
+        logger.debug("CryptoAPI hash failed: %s", e)
         return None
+    finally:
+        # Always release handles to prevent resource leaks
+        try:
+            if hHash:
+                advapi32.CryptDestroyHash(hHash)
+            if hProv:
+                advapi32.CryptReleaseContext(hProv, 0)
+        except Exception:
+            pass
 
-def calculate_sha1(filepath):
-    """SHA1 хеш файла (оставлен на питоне для совместимости)"""
-    import hashlib
-    try:
-        hasher = hashlib.sha1()
-        with open(filepath, 'rb') as f:
-            for chunk in iter(lambda: f.read(8192), b''):
-                hasher.update(chunk)
-        return hasher.hexdigest()
-    except:
-        return None
 
-def calculate_sha256(filepath):
-    """SHA256 хеш файла через CryptoAPI"""
-    try:
-        hProv = ctypes.c_void_p()
-        hHash = ctypes.c_void_p()
-        rgbHash = (ctypes.c_byte * 32)()
-        cbHash = ctypes.c_uint(32)
+def _cryptoapi_md5(filepath: str) -> Optional[str]:
+    """Compute MD5 via Windows CryptoAPI (fallback)."""
+    return _cryptoapi_hash(filepath, _CALG_MD5, _PROV_RSA_FULL, 16)
 
-        if not advapi32.CryptAcquireContextA(ctypes.byref(hProv), None, None, PROV_RSA_AES, CRYPT_VERIFYCONTEXT):
-            return None
 
-        if not advapi32.CryptCreateHash(hProv, CALG_SHA_256, 0, 0, ctypes.byref(hHash)):
-            advapi32.CryptReleaseContext(hProv, 0)
-            return None
-
-        with open(filepath, 'rb') as f:
-            while True:
-                chunk = f.read(8192)
-                if not chunk:
-                    break
-                if not advapi32.CryptHashData(hHash, chunk, len(chunk), 0):
-                    advapi32.CryptDestroyHash(hHash)
-                    advapi32.CryptReleaseContext(hProv, 0)
-                    return None
-
-        if not advapi32.CryptGetHashParam(hHash, HP_HASHVAL, ctypes.byref(rgbHash), ctypes.byref(cbHash), 0):
-            advapi32.CryptDestroyHash(hHash)
-            advapi32.CryptReleaseContext(hProv, 0)
-            return None
-
-        hex_hash = ''.join(f'{b & 0xff:02x}' for b in rgbHash)
-
-        advapi32.CryptDestroyHash(hHash)
-        advapi32.CryptReleaseContext(hProv, 0)
-        return hex_hash
-    except:
-        return None
-
-def calculate_all(filepath):
-    """Все хеши сразу"""
-    return {
-        'md5': calculate_md5(filepath),
-        'sha1': calculate_sha1(filepath),
-        'sha256': calculate_sha256(filepath)
-    }
+def _cryptoapi_sha256(filepath: str) -> Optional[str]:
+    """Compute SHA-256 via Windows CryptoAPI (fallback)."""
+    return _cryptoapi_hash(filepath, _CALG_SHA_256, _PROV_RSA_AES, 32)

@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('frontend/dist', 'frontend/dist')],
+    hiddenimports=collect_submodules('webview'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

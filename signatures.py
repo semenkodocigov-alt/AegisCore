@@ -65,7 +65,7 @@ class SignatureDatabase:
                    "cyberghost", "vyprvpn", "airvpn", "ivpn", "mullvad",
                    "openvpn", "wireguard", "ikev2", "pptp", "l2tp"],
             # Прокси и безопасные сетевые сервисы
-            "network": ["proxy", "socks", "shadowsocks", "v2ray", "trojan", "clash"],
+            "network": ["proxy", "socks", "shadowsocks", "v2ray", "clash", "sing-box"],
             # Легитимное ПО
             "system": ["windows", "microsoft", "google", "apple", "mozilla",
                       "chrome", "firefox", "edge", "opera", "safari",
@@ -200,6 +200,6 @@ class SignatureDatabase:
 
     def update_signatures(self):
         """Обновление сигнатур из Kaspersky (заглушка)"""
-        # Здесь можно добавить загрузку сигнатур из Kaspersky
+        # чуть позже добавлю возможноть использование ключа касперского
         # Пока возвращаем количество обновленных сигнатур
         return 0

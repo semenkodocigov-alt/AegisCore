@@ -147,11 +147,11 @@ class SignatureDatabase:
                 "severity": "medium",
                 "source": "local"
             },
-            # Добавляем еще сигнатуры известных вирусов
-            "d41d8cd98f00b204e9800998ecf8427e": {
-                "name": "Trojan.Generic",
-                "type": "trojan",
-                "severity": "high",
+            # EICAR тестовый антивирусный файл
+            "44d88612fea8a8f36de82e1278abb02f": {
+                "name": "EICAR-Test-File",
+                "type": "test_virus",
+                "severity": "medium",
                 "source": "local"
             }
         }

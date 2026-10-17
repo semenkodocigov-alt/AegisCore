@@ -4,13 +4,20 @@ Aegis Core - Запуск приложения
 import sys
 import os
 
+# Обеспечиваем корректный вывод UTF-8 в консоли Windows
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # Добавляем текущую папку в путь
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
-
-# Импортируем и запускаем
-from gui_app import AegisApp
 
 
 def register_shell_context_menu():
@@ -52,7 +59,7 @@ def unregister_shell_context_menu():
 
 if __name__ == "__main__":
     print("=" * 40)
-    print("🛡️ Aegis Core v2.0")
+    print("🛡️ Aegis Core ")
     print("=" * 40)
 
     try:
@@ -68,9 +75,9 @@ if __name__ == "__main__":
             elif os.path.exists(first_arg):
                 scan_target = first_arg
 
-        app = AegisApp()
-        if scan_target:
-            app.scan_file_on_start(scan_target)
+        from desktop_app import AegisDesktopApp
+
+        app = AegisDesktopApp(scan_target)
         app.run()
     except Exception as e:
         print(f"❌ Ошибка запуска приложения: {e}")
