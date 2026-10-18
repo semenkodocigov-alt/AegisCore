@@ -1,5 +1,8 @@
 .venv/
 build/
+build_installer/
+Aegis-Core-Setup.spec
+installer_setup.spec
 dist/
 cache/
 node_modules/
