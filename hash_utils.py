@@ -5,8 +5,8 @@ CryptoAPI (advapi32) is available as an optional fallback on Windows.
 """
 import hashlib
 import logging
-import os
-from typing import Dict, Optional
+import math
+from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,32 @@ def calculate_all(filepath: str) -> Dict[str, Optional[str]]:
     Returns a dict with keys 'md5', 'sha1', 'sha256'.
     Values are hex-digest strings, or None on error.
     """
+    hashes, _ = calculate_all_with_entropy(filepath)
+    return hashes
+
+
+def calculate_all_with_entropy(
+    filepath: str,
+) -> Tuple[Dict[str, Optional[str]], Optional[float]]:
+    """Compute all supported hashes and entropy from a single file pass."""
+    try:
+        from native_scanner import NativeScannerError, calculate_file
+
+        try:
+            native_result = calculate_file(filepath)
+        except NativeScannerError as error:
+            logger.warning("Native hashing failed for %s; using Python fallback: %s", filepath, error)
+            native_result = None
+        if native_result is not None:
+            return native_result
+    except ImportError:
+        logger.debug("Native scanner bridge unavailable; using Python hashing.")
+
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
     sha256 = hashlib.sha256()
+    entropy_counts = [0] * 256
+    entropy_size = 0
 
     try:
         with open(filepath, 'rb') as f:
@@ -40,21 +63,31 @@ def calculate_all(filepath: str) -> Dict[str, Optional[str]]:
                 md5.update(chunk)
                 sha1.update(chunk)
                 sha256.update(chunk)
+                sample = chunk[:max(0, 10_000 - entropy_size)]
+                for value in sample:
+                    entropy_counts[value] += 1
+                entropy_size += len(sample)
 
-        return {
+        entropy = 0.0
+        if entropy_size:
+            for count in entropy_counts:
+                if count:
+                    probability = count / entropy_size
+                    entropy -= probability * math.log2(probability)
+        return ({
             'md5': md5.hexdigest(),
             'sha1': sha1.hexdigest(),
             'sha256': sha256.hexdigest(),
-        }
+        }, entropy)
     except PermissionError:
         logger.warning("Permission denied hashing file: %s", filepath)
-        return {'md5': None, 'sha1': None, 'sha256': None}
+        return {'md5': None, 'sha1': None, 'sha256': None}, None
     except FileNotFoundError:
         logger.warning("File not found for hashing: %s", filepath)
-        return {'md5': None, 'sha1': None, 'sha256': None}
+        return {'md5': None, 'sha1': None, 'sha256': None}, None
     except OSError as e:
         logger.error("OS error hashing file %s: %s", filepath, e)
-        return {'md5': None, 'sha1': None, 'sha256': None}
+        return {'md5': None, 'sha1': None, 'sha256': None}, None
 
 
 def calculate_md5(filepath: str) -> Optional[str]:

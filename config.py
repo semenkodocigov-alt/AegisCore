@@ -198,8 +198,6 @@ class Config:
         lines.append(separator)
         output = "\n".join(lines)
         logger.info("\n%s", output)
-        # Also print to stdout for interactive use
-        print(output)
 
 
 # ---------------------------------------------------------------------------

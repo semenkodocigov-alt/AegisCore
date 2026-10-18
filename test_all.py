@@ -4,25 +4,21 @@
 Проверяет все основные компоненты
 """
 
+import logging
 import sys
-import os
-from pathlib import Path
 
-# Обеспечиваем корректный вывод UTF-8 в консоли Windows
-if sys.platform == 'win32':
-    try:
-        if hasattr(sys.stdout, 'reconfigure'):
-            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        if hasattr(sys.stderr, 'reconfigure'):
-            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
-    except Exception:
-        pass
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
+
+
+def report(*values: object) -> None:
+    logger.info("%s", " ".join(str(value) for value in values))
 
 def test_imports():
     """Тест импортов всех модулей"""
-    print("=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ ИМПОРТОВ")
-    print("=" * 60)
+    report("=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ ИМПОРТОВ")
+    report("=" * 60)
     
     modules = [
         ("scanner", "FileScanner"),
@@ -40,9 +36,9 @@ def test_imports():
         try:
             mod = __import__(module_name)
             obj = getattr(mod, class_name)
-            print(f"✓ {module_name:.<40} OK")
+            report(f"✓ {module_name:.<40} OK")
         except Exception as e:
-            print(f"✗ {module_name:.<40} FAILED: {e}")
+            report(f"✗ {module_name:.<40} FAILED: {e}")
             failed.append((module_name, str(e)))
     
     return len(failed) == 0, failed
@@ -50,9 +46,9 @@ def test_imports():
 
 def test_file_cleaner():
     """Тест модуля удаления файлов"""
-    print("\n" + "=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ FILE_CLEANER")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ FILE_CLEANER")
+    report("=" * 60)
     
     try:
         from file_cleaner import FileCleaner
@@ -71,23 +67,23 @@ def test_file_cleaner():
         
         for method_name, expected in methods:
             if hasattr(cleaner, method_name):
-                print(f"✓ {method_name:.<40} OK")
+                report(f"✓ {method_name:.<40} OK")
             else:
-                print(f"✗ {method_name:.<40} FAILED")
+                report(f"✗ {method_name:.<40} FAILED")
                 return False
         
-        print(f"✓ Директория резервных копий: {cleaner.backup_dir}")
+        report(f"✓ Директория резервных копий: {cleaner.backup_dir}")
         return True
     except Exception as e:
-        print(f"✗ Ошибка инициализации: {e}")
+        report(f"✗ Ошибка инициализации: {e}")
         return False
 
 
 def test_sound_manager():
     """Тест менеджера звуков"""
-    print("\n" + "=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ SOUND_MANAGER")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ SOUND_MANAGER")
+    report("=" * 60)
     
     try:
         from sound_manager import get_sound_manager
@@ -101,37 +97,37 @@ def test_sound_manager():
         
         for method_name in methods:
             if hasattr(sm, method_name):
-                print(f"✓ {method_name:.<40} OK")
+                report(f"✓ {method_name:.<40} OK")
             else:
-                print(f"✗ {method_name:.<40} FAILED")
+                report(f"✗ {method_name:.<40} FAILED")
                 return False
         
-        print(f"✓ Система: {sm.system}")
-        print(f"✓ Has winsound: {sm.has_winsound}")
+        report(f"✓ Система: {sm.system}")
+        report(f"✓ Has winsound: {sm.has_winsound}")
         return True
     except Exception as e:
-        print(f"✗ Ошибка инициализации: {e}")
+        report(f"✗ Ошибка инициализации: {e}")
         return False
 
 
 def test_signatures():
     """Тест улучшенной базы сигнатур"""
-    print("\n" + "=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ SIGNATURES_IMPROVED")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ SIGNATURES_IMPROVED")
+    report("=" * 60)
     
     try:
         from signatures_improved import SignatureDatabase, VirusTotalChecker
         
         # Тест VirusTotal чекера
         vt = VirusTotalChecker()
-        print(f"✓ VirusTotal enabled: {vt.enabled}")
-        print(f"✓ VirusTotal API URL: {vt.API_URL}")
+        report(f"✓ VirusTotal enabled: {vt.enabled}")
+        report(f"✓ VirusTotal API URL: {vt.API_URL}")
         
         # Тест базы сигнатур
         db = SignatureDatabase()
-        print(f"✓ Сигнатур загружено: {db.total_count()}")
-        print(f"✓ Статистика: {db.get_statistics()}")
+        report(f"✓ Сигнатур загружено: {db.total_count()}")
+        report(f"✓ Статистика: {db.get_statistics()}")
         
         methods = [
             "check_hash",
@@ -142,31 +138,31 @@ def test_signatures():
         
         for method_name in methods:
             if hasattr(db, method_name):
-                print(f"✓ {method_name:.<40} OK")
+                report(f"✓ {method_name:.<40} OK")
             else:
-                print(f"✗ {method_name:.<40} FAILED")
+                report(f"✗ {method_name:.<40} FAILED")
                 return False
         
         return True
     except Exception as e:
-        print(f"✗ Ошибка инициализации: {e}")
+        report(f"✗ Ошибка инициализации: {e}")
         return False
 
 
 def test_config():
     """Тест системы конфигурации"""
-    print("\n" + "=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ CONFIG")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ CONFIG")
+    report("=" * 60)
     
     try:
         from config import get_config
         cfg = get_config()
         
-        print(f"✓ enable_sound: {cfg.get('enable_sound')}")
-        print(f"✓ use_improved_signatures: {cfg.get('use_improved_signatures')}")
-        print(f"✓ max_file_size: {cfg.get('max_file_size')}")
-        print(f"✓ quarantine_dir: {cfg.get('quarantine_dir')}")
+        report(f"✓ enable_sound: {cfg.get('enable_sound')}")
+        report(f"✓ use_improved_signatures: {cfg.get('use_improved_signatures')}")
+        report(f"✓ max_file_size: {cfg.get('max_file_size')}")
+        report(f"✓ quarantine_dir: {cfg.get('quarantine_dir')}")
         
         methods = [
             "get",
@@ -177,22 +173,22 @@ def test_config():
         
         for method_name in methods:
             if hasattr(cfg, method_name):
-                print(f"✓ {method_name:.<40} OK")
+                report(f"✓ {method_name:.<40} OK")
             else:
-                print(f"✗ {method_name:.<40} FAILED")
+                report(f"✗ {method_name:.<40} FAILED")
                 return False
         
         return True
     except Exception as e:
-        print(f"✗ Ошибка инициализации: {e}")
+        report(f"✗ Ошибка инициализации: {e}")
         return False
 
 
 def test_scanner():
     """Тест сканера файлов"""
-    print("\n" + "=" * 60)
-    print("🧪 ТЕСТИРОВАНИЕ SCANNER")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("🧪 ТЕСТИРОВАНИЕ SCANNER")
+    report("=" * 60)
     
     try:
         from scanner import FileScanner
@@ -205,24 +201,24 @@ def test_scanner():
         
         for method_name in methods:
             if hasattr(scanner, method_name):
-                print(f"✓ {method_name:.<40} OK")
+                report(f"✓ {method_name:.<40} OK")
             else:
-                print(f"✗ {method_name:.<40} FAILED")
+                report(f"✗ {method_name:.<40} FAILED")
                 return False
         
-        print(f"✓ Сигнатур в базе: {scanner.sig_db.total_count()}")
+        report(f"✓ Сигнатур в базе: {scanner.sig_db.total_count()}")
         return True
     except Exception as e:
-        print(f"✗ Ошибка инициализации: {e}")
+        report(f"✗ Ошибка инициализации: {e}")
         return False
 
 
 def main():
     """Основной тест"""
-    print("\n")
-    print("╔" + "=" * 58 + "╗")
-    print("║" + " " * 10 + "🧪 AEGIS CORE 2.0 - ТЕСТИРОВАНИЕ" + " " * 15 + "║")
-    print("╚" + "=" * 58 + "╝")
+    report("\n")
+    report("╔" + "=" * 58 + "╗")
+    report("║" + " " * 10 + "🧪 AEGIS CORE 2.0 - ТЕСТИРОВАНИЕ" + " " * 15 + "║")
+    report("╚" + "=" * 58 + "╝")
     
     tests = [
         ("Импорты", test_imports),
@@ -242,32 +238,32 @@ def main():
             else:
                 results[test_name] = result
         except Exception as e:
-            print(f"\n✗ Ошибка теста {test_name}: {e}")
+            report(f"\n✗ Ошибка теста {test_name}: {e}")
             results[test_name] = False
     
     # Итоги
-    print("\n" + "=" * 60)
-    print("📊 ИТОГИ ТЕСТИРОВАНИЯ")
-    print("=" * 60)
+    report("\n" + "=" * 60)
+    report("📊 ИТОГИ ТЕСТИРОВАНИЯ")
+    report("=" * 60)
     
     passed = sum(1 for v in results.values() if v)
     total = len(results)
     
     for test_name, result in results.items():
         status = "✓ PASSED" if result else "✗ FAILED"
-        print(f"{test_name:.<40} {status}")
+        report(f"{test_name:.<40} {status}")
     
-    print("=" * 60)
-    print(f"Результат: {passed}/{total} тестов пройдено")
+    report("=" * 60)
+    report(f"Результат: {passed}/{total} тестов пройдено")
     
     if passed == total:
-        print("\n✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!")
-        print("\nТеперь вы можете запустить приложение:")
-        print("  python main.py")
+        report("\n✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!")
+        report("\nТеперь вы можете запустить приложение:")
+        report("  python main.py")
         return 0
     else:
-        print("\n❌ НЕКОТОРЫЕ ТЕСТЫ НЕ ПРОШЛИ")
-        print("\nПроверьте ошибки выше")
+        report("\n❌ НЕКОТОРЫЕ ТЕСТЫ НЕ ПРОШЛИ")
+        report("\nПроверьте ошибки выше")
         return 1
 
 

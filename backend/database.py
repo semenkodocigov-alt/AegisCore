@@ -55,7 +55,7 @@ def _get_connection() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 
 def create_tables() -> None:
-    """Create the ``users`` table if it does not exist.
+    """Create application storage tables if they do not exist.
 
     Safe to call multiple times (``IF NOT EXISTS``).
     """
@@ -74,6 +74,37 @@ def create_tables() -> None:
             remember_token TEXT
         )
         """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+
+
+def get_setting(key: str) -> str | None:
+    """Read an application setting from the local database."""
+    row = _get_connection().execute(
+        "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+        (key,),
+    ).fetchone()
+    return str(row["setting_value"]) if row else None
+
+
+def set_setting(key: str, value: str) -> None:
+    """Persist an application setting in the local database."""
+    conn = _get_connection()
+    conn.execute(
+        """
+        INSERT INTO app_settings (setting_key, setting_value)
+        VALUES (?, ?)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value
+        """,
+        (key, value),
     )
     conn.commit()
 

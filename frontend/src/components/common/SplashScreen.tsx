@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -7,6 +8,7 @@ interface SplashScreenProps {
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete, minDurationMs = 1250 }) => {
+  const { t } = useLanguage();
   useEffect(() => {
     const timer = window.setTimeout(onComplete, minDurationMs);
     return () => window.clearTimeout(timer);
@@ -26,7 +28,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete, minDurat
           </svg>
         </span>
         <strong>Aegis <span>Core</span></strong>
-        <p>Preparing your workspace</p>
+        <p>{t('Preparing your workspace')}</p>
       </div>
       <div className="splash-progress"><span /></div>
     </motion.div>

@@ -222,6 +222,7 @@ class FileCleaner:
                         ['powershell', '-NoProfile', '-Command', ps_cmd],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                     )
                 except FileNotFoundError:
                     logger.debug("PowerShell not available for scan")

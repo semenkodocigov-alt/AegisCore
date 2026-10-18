@@ -3,8 +3,11 @@ import requests
 import json
 import os
 import time
+import logging
 from pathlib import Path
 from config import get_config
+
+logger = logging.getLogger(__name__)
 
 class SignatureDatabase:
     def __init__(self):
@@ -148,7 +151,7 @@ class SignatureDatabase:
 
                 url = f"https://www.virustotal.com/api/v3/files/{hash_to_check}"
                 headers = {"x-apikey": self.vt_api_key}
-                print('⏳ Проверка VirusTotal: запрос отправлен')
+                logger.info("VirusTotal lookup started")
                 response = requests.get(url, headers=headers, timeout=30)
                 self.last_vt_request_time = time.time()
 
@@ -184,13 +187,13 @@ class SignatureDatabase:
                         self._save_cache()
 
             except requests.exceptions.Timeout as e:
-                print(f'⚠️ VirusTotal: timeout ({e})')
+                logger.warning("VirusTotal request timed out: %s", e)
             except requests.exceptions.ConnectionError as e:
-                print(f'⚠️ VirusTotal: ошибка соединения ({e})')
+                logger.warning("VirusTotal connection failed: %s", e)
             except requests.exceptions.RequestException as e:
-                print(f'⚠️ VirusTotal: ошибка запроса ({e})')
+                logger.warning("VirusTotal request failed: %s", e)
             except Exception as e:
-                print(f'⚠️ VirusTotal: неизвестная ошибка ({e})')
+                logger.exception("Unexpected VirusTotal error: %s", e)
 
         return None
 

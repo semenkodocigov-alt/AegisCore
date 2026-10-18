@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { QuarantinedFile } from '../../types/scanner';
 import { apiService } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const QuarantineView: React.FC = () => {
+  const { t } = useLanguage();
   const [items, setItems] = useState<QuarantinedFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState('');
@@ -37,12 +39,12 @@ export const QuarantineView: React.FC = () => {
     }
     setItems((current) => current.filter((entry) => entry.id !== item.id));
     setActionMessage(action === 'restore'
-      ? `Restored ${item.originalName}.`
-      : `Removed ${item.originalName} from quarantine.`);
+      ? t('Restored {name}.', { name: item.originalName })
+      : t('Removed {name} from quarantine.', { name: item.originalName }));
   };
 
   const purgeAll = async () => {
-    if (!items.length || !window.confirm(`Permanently remove all ${items.length} quarantined files?`)) return;
+    if (!items.length || !window.confirm(t('Permanently remove all {count} quarantined files?', { count: items.length }))) return;
     setActionError('');
     setActionMessage('');
     const outcomes = await Promise.all(items.map((item) => apiService.deleteQuarantineFile(item.id)));
@@ -52,9 +54,9 @@ export const QuarantineView: React.FC = () => {
     setItems((current) => current.filter((item) => !deletedIds.has(item.id)));
     const failedCount = outcomes.length - deletedIds.size;
     if (failedCount) {
-      setActionError(`${failedCount} file${failedCount === 1 ? '' : 's'} could not be removed. Refresh and try again.`);
+      setActionError(t('{count} file(s) could not be removed. Refresh and try again.', { count: failedCount }));
     } else {
-      setActionMessage(`Removed ${items.length} files from quarantine.`);
+      setActionMessage(t('Removed {count} files from quarantine.', { count: items.length }));
     }
   };
 
@@ -73,12 +75,12 @@ export const QuarantineView: React.FC = () => {
     >
       <header className="page-heading">
         <div>
-          <p className="eyebrow">LOCAL STORAGE</p>
-          <h1>Quarantine</h1>
-          <p>Review isolated files before restoring or removing them.</p>
+          <p className="eyebrow">{t('LOCAL STORAGE')}</p>
+          <h1>{t('Quarantine')}</h1>
+          <p>{t('Review isolated files before restoring or removing them.')}</p>
         </div>
         <button className="button button-secondary" type="button" onClick={() => void purgeAll()} disabled={!items.length || isLoading}>
-          Remove all
+          {t('Remove all')}
         </button>
       </header>
 
@@ -91,29 +93,29 @@ export const QuarantineView: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            {actionError || actionMessage}
+            {actionError ? t(actionError) : actionMessage}
           </motion.div>
         )}
       </AnimatePresence>
 
       {isLoading ? (
-        <div className="account-card quarantine-empty">Loading quarantine…</div>
+        <div className="account-card quarantine-empty">{t('Loading quarantine…')}</div>
       ) : items.length === 0 ? (
         <div className="account-card quarantine-empty">
-          <p className="eyebrow">NOTHING IS ISOLATED</p>
-          <h2>Quarantine is empty</h2>
-          <p>Files you move here will appear in this list.</p>
+          <p className="eyebrow">{t('NOTHING IS ISOLATED')}</p>
+          <h2>{t('Quarantine is empty')}</h2>
+          <p>{t('Files you move here will appear in this list.')}</p>
         </div>
       ) : (
         <div className="account-card quarantine-table-wrap">
           <table className="quarantine-table">
             <thead>
               <tr>
-                <th>File</th>
-                <th>Original location</th>
-                <th>Size</th>
-                <th>Moved to quarantine</th>
-                <th><span className="visually-hidden">Actions</span></th>
+                <th>{t('File')}</th>
+                <th>{t('Original location')}</th>
+                <th>{t('Size')}</th>
+                <th>{t('Moved to quarantine')}</th>
+                <th><span className="visually-hidden">{t('Actions')}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -128,10 +130,10 @@ export const QuarantineView: React.FC = () => {
                   <td>{item.quarantinedAt}</td>
                   <td className="quarantine-actions">
                     <button className="button button-secondary" type="button" onClick={() => void runAction(item, 'restore')}>
-                      Restore
+                      {t('Restore')}
                     </button>
                     <button className="button button-danger" type="button" onClick={() => void runAction(item, 'delete')}>
-                      Remove
+                      {t('Remove')}
                     </button>
                   </td>
                 </tr>

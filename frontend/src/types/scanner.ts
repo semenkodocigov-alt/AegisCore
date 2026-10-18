@@ -1,4 +1,4 @@
-export type ScanType = 'quick' | 'full' | 'custom';
+export type ScanType = 'quick' | 'full' | 'custom' | 'system';
 
 export type ThreatSeverity = 'clean' | 'low' | 'medium' | 'high' | 'critical';
 
@@ -18,6 +18,33 @@ export interface ThreatItem {
   };
   timestamp: number;
   quarantined: boolean;
+  virusTotal?: VirusTotalResult;
+}
+
+export interface VirusTotalDetection {
+  engine: string;
+  label: string;
+}
+
+export interface VirusTotalResult {
+  status: 'clean' | 'detected' | 'not_found' | 'queued' | 'rate_limited' | 'error';
+  sha256?: string;
+  malicious: number;
+  suspicious: number;
+  total: number;
+  detections: VirusTotalDetection[];
+  reportUrl: string;
+  message: string;
+  errorCode?: string;
+  analysisId?: string;
+}
+
+export interface VirusTotalSummary {
+  status: 'disabled' | 'enabled' | 'error' | 'rate_limited';
+  filesChecked: number;
+  detections: number;
+  rateLimited: number;
+  lastError: string;
 }
 
 export interface ScanProgress {
@@ -29,7 +56,9 @@ export interface ScanProgress {
   percentage: number;
   threatsFound: number;
   threats: ThreatItem[];
+  virusTotal?: VirusTotalSummary;
   elapsedSeconds: number;
+  scanSpeed: number;
   error?: string;
 }
 
@@ -59,4 +88,5 @@ export interface NativeFileScanResult {
   is_threat: boolean;
   threat_name: string;
   details: string[];
+  virusTotal?: VirusTotalResult;
 }

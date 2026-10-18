@@ -7,9 +7,12 @@ import json
 import os
 import time
 import hashlib
+import logging
 from pathlib import Path
 from datetime import datetime, timedelta
 from config import get_config
+
+logger = logging.getLogger(__name__)
 
 class VirusTotalChecker:
     """Проверка через вирус тотал"""
@@ -41,7 +44,7 @@ class VirusTotalChecker:
             self._wait_for_rate_limit()
             headers = {"x-apikey": self.api_key}
             url = f"{self.API_URL}/files/{file_hash}"
-            print('⏳ Проверка VirusTotal: запрос отправлен')
+            logger.info("VirusTotal lookup started")
             response = requests.get(
                 url,
                 headers=headers,
@@ -53,13 +56,13 @@ class VirusTotalChecker:
                 # Файл не найден в VirusTotal
                 return {"positives": 0, "total": 0}
             if response.status_code == 429:
-                print('⚠️ VirusTotal: превышен лимит запросов')
+                logger.warning("VirusTotal rate limit reached")
                 return None
             if response.status_code >= 500:
-                print(f'⚠️ VirusTotal: серверная ошибка {response.status_code}')
+                logger.warning("VirusTotal server error: HTTP %s", response.status_code)
                 return None
             if response.status_code != 200:
-                print(f'⚠️ VirusTotal: неожиданный код {response.status_code}')
+                logger.warning("Unexpected VirusTotal response: HTTP %s", response.status_code)
                 return None
             
             data = response.json()
@@ -87,16 +90,16 @@ class VirusTotalChecker:
             }
         
         except requests.exceptions.Timeout as e:
-            print(f'⚠️ VirusTotal: timeout ({e})')
+            logger.warning("VirusTotal request timed out: %s", e)
             return None
         except requests.exceptions.ConnectionError as e:
-            print(f'⚠️ VirusTotal: ошибка соединения ({e})')
+            logger.warning("VirusTotal connection failed: %s", e)
             return None
         except requests.exceptions.RequestException as e:
-            print(f'⚠️ VirusTotal: ошибка запроса ({e})')
+            logger.warning("VirusTotal request failed: %s", e)
             return None
         except Exception as e:
-            print(f'⚠️ VirusTotal: неизвестная ошибка ({e})')
+            logger.exception("Unexpected VirusTotal error: %s", e)
             return None
 
 

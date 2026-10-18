@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface WelcomeScreenProps {
   onContinueAsGuest: () => void;
@@ -9,10 +10,11 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const { t } = useLanguage();
 
   return (
     <main className="welcome-page">
-      <section className="welcome-story" aria-label="About Aegis Core">
+      <section className="welcome-story" aria-label={t('About Aegis Core')}>
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
@@ -24,37 +26,36 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest 
         </div>
 
         <div className="welcome-copy">
-          <p className="eyebrow">PERSONAL SECURITY, WITHOUT THE NOISE</p>
-          <h1>A clearer view<br />of your device.</h1>
+          <p className="eyebrow">{t('PERSONAL SECURITY, WITHOUT THE NOISE')}</p>
+          <h1>{t('A clearer view')}<br />{t('of your device.')}</h1>
           <p className="welcome-description">
-            Scan files, review what needs attention, and keep control close at hand.
-            Your work stays on this device.
+            {t('Scan files, review what needs attention, and keep control close at hand. Your work stays on this device.')}
           </p>
         </div>
 
         <div className="welcome-notes">
           <div className="welcome-note">
             <span className="note-index">01</span>
-            <div><strong>Local by default</strong><span>Files are inspected on your device.</span></div>
+            <div><strong>{t('Local by default')}</strong><span>{t('Files are inspected on your device.')}</span></div>
           </div>
           <div className="welcome-note">
             <span className="note-index">02</span>
-            <div><strong>Start without an account</strong><span>Guest access is ready whenever you are.</span></div>
+            <div><strong>{t('Start without an account')}</strong><span>{t('Guest access is ready whenever you are.')}</span></div>
           </div>
         </div>
 
-        <p className="welcome-footnote">Aegis Core <span>·</span> Desktop security workspace</p>
+        <p className="welcome-footnote">Aegis Core <span>·</span> {t('Desktop security workspace')}</p>
       </section>
 
-      <section className="welcome-auth" aria-label={mode === 'login' ? 'Sign in' : 'Create account'}>
+      <section className="welcome-auth" aria-label={t(mode === 'login' ? 'Sign in' : 'Create account')}>
         <div className="auth-panel">
           <div className="auth-panel-heading">
-            <p className="eyebrow">YOUR WORKSPACE</p>
-            <h2>{mode === 'login' ? 'Welcome back.' : 'Make it yours.'}</h2>
-            <p>{mode === 'login' ? 'Sign in to continue where you left off.' : 'Create an account for a persistent profile.'}</p>
+            <p className="eyebrow">{t('YOUR WORKSPACE')}</p>
+            <h2>{t(mode === 'login' ? 'Welcome back.' : 'Make it yours.')}</h2>
+            <p>{t(mode === 'login' ? 'Sign in to continue where you left off.' : 'Create an account for a persistent profile.')}</p>
           </div>
 
-          <div className="auth-switch" role="tablist" aria-label="Account access">
+          <div className="auth-switch" role="tablist" aria-label={t('Account access')}>
             <button
               type="button"
               role="tab"
@@ -62,7 +63,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest 
               className={mode === 'login' ? 'auth-switch-active' : ''}
               onClick={() => setMode('login')}
             >
-              Sign in
+              {t('Sign in')}
             </button>
             <button
               type="button"
@@ -71,7 +72,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest 
               className={mode === 'register' ? 'auth-switch-active' : ''}
               onClick={() => setMode('register')}
             >
-              Create account
+              {t('Create account')}
             </button>
           </div>
 
@@ -91,7 +92,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest 
             </motion.div>
           </AnimatePresence>
 
-          <div className="auth-divider"><span>OR</span></div>
+          <div className="auth-divider"><span>{t('OR')}</span></div>
           <motion.button
             type="button"
             className="button button-secondary guest-button"
@@ -99,9 +100,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onContinueAsGuest 
             whileTap={{ scale: 0.985 }}
             transition={{ type: 'spring', stiffness: 420, damping: 28 }}
           >
-            Continue as guest <span aria-hidden="true">→</span>
+            {t('Continue as guest')} <span aria-hidden="true">→</span>
           </motion.button>
-          <p className="auth-privacy-note">Guest access is session-only. No email or password required.</p>
+          <p className="auth-privacy-note">{t('Guest access is session-only. No email or password required.')}</p>
         </div>
       </section>
     </main>

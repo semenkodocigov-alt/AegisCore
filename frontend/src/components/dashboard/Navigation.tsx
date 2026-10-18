@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export type ActiveTab = 'scanner' | 'quarantine' | 'settings' | 'account';
 
@@ -41,15 +42,16 @@ export const Navigation: React.FC<NavigationProps> = ({
   quarantineCount = 0,
 }) => {
   const { user, isGuest } = useAuth();
+  const { t } = useLanguage();
   const navItems: { id: ActiveTab; label: string; badge?: number }[] = [
-    { id: 'scanner', label: 'Overview' },
-    { id: 'quarantine', label: 'Quarantine', badge: quarantineCount },
-    { id: 'settings', label: 'Settings' },
-    { id: 'account', label: 'My account' },
+    { id: 'scanner', label: t('Overview') },
+    { id: 'quarantine', label: t('Quarantine'), badge: quarantineCount },
+    { id: 'settings', label: t('Settings') },
+    { id: 'account', label: t('My account') },
   ];
 
   return (
-    <nav className="app-navigation" aria-label="Main navigation">
+    <nav className="app-navigation" aria-label={t('Main navigation')}>
       <div className="nav-items">
         {navItems.map((item) => {
           const selected = activeTab === item.id;
@@ -80,7 +82,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <span className={`session-dot ${isGuest ? 'session-dot-guest' : ''}`} />
           <span>{user.nickname}</span>
           <span className="nav-session-divider">/</span>
-          <span>{isGuest ? 'Guest' : 'Account'}</span>
+          <span>{t(isGuest ? 'Guest' : 'Account')}</span>
         </div>
       )}
     </nav>

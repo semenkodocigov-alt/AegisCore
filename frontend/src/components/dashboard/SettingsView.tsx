@@ -1,9 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { LanguageSwitcher } from '../common/LanguageSwitcher';
+import { VirusTotalSettings } from './VirusTotalSettings';
 
 export const SettingsView: React.FC = () => {
   const { rememberMePreference, setRememberMePreference } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <motion.section
@@ -14,9 +18,9 @@ export const SettingsView: React.FC = () => {
     >
       <header className="page-heading">
         <div>
-          <p className="eyebrow">APPLICATION</p>
-          <h1>Settings</h1>
-          <p>Adjust sign-in defaults and review how local scans work.</p>
+          <p className="eyebrow">{t('APPLICATION')}</p>
+          <h1>{t('Settings')}</h1>
+          <p>{t('Adjust sign-in defaults and review how local scans work.')}</p>
         </div>
       </header>
 
@@ -24,13 +28,12 @@ export const SettingsView: React.FC = () => {
         <section className="account-card">
           <div className="card-heading">
             <div>
-              <p className="eyebrow">SIGN-IN</p>
-              <h2>Remember this device</h2>
+              <p className="eyebrow">{t('SIGN-IN')}</p>
+              <h2>{t('Remember this device')}</h2>
             </div>
           </div>
           <p className="account-copy">
-            Choose whether the next sign-in should keep your account after Aegis Core closes.
-            This does not change the session that is already active.
+            {t('Choose whether the next sign-in should keep your account after Aegis Core closes. This does not change the session that is already active.')}
           </p>
           <label className="check-row settings-check-row">
             <input
@@ -38,28 +41,29 @@ export const SettingsView: React.FC = () => {
               checked={rememberMePreference}
               onChange={(event) => setRememberMePreference(event.target.checked)}
             />
-            <span>Use Remember Me by default</span>
+            <span>{t('Use Remember Me by default')}</span>
           </label>
         </section>
 
         <section className="account-card">
           <div className="card-heading">
             <div>
-              <p className="eyebrow">SCANNING</p>
-              <h2>Local, on-demand checks</h2>
+              <p className="eyebrow">{t('SCANNING')}</p>
+              <h2>{t('Local, on-demand checks')}</h2>
             </div>
           </div>
           <dl className="session-details">
-            <div><dt>When scans run</dt><dd>When you start one</dd></div>
-            <div><dt>Where files are checked</dt><dd>This device</dd></div>
-            <div><dt>Background monitoring</dt><dd>Not enabled</dd></div>
+            <div><dt>{t('When scans run')}</dt><dd>{t('When you start one')}</dd></div>
+            <div><dt>{t('Where files are checked')}</dt><dd>{t('This device')}</dd></div>
+            <div><dt>{t('Background monitoring')}</dt><dd>{t('Not enabled')}</dd></div>
           </dl>
           <p className="account-copy">
-            File contents stay on this device. If VirusTotal credentials are
-            configured, file hashes may be sent for an external lookup.
+            {t('File contents stay on this device. If VirusTotal credentials are configured, file hashes may be sent for an external lookup.')}
           </p>
         </section>
       </div>
+      <VirusTotalSettings />
+      <LanguageSwitcher />
     </motion.section>
   );
 };

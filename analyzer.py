@@ -1,7 +1,8 @@
 """Анализатор файлов на угрозы"""
 import os
-import math
-import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Подозрительные API вызовы
 SUSPICIOUS_APIS = [
@@ -71,7 +72,7 @@ class FileAnalyzer:
     def __init__(self, signature_db=None):
         self.signature_db = signature_db
 
-    def analyze(self, filepath):
+    def analyze(self, filepath, entropy=None):
         """
         Анализ файла
         Возвращает: (статус, список_угроз, балл)
@@ -119,12 +120,12 @@ class FileAnalyzer:
                 elif size > 50 * 1024 * 1024 and ext in ['.exe', '.dll', '.sys', '.scr']:
                     threats.append("Необычно большой размер исполняемого файла")
                     score += 1
-            except:
-                pass
+            except OSError as error:
+                logger.warning("Could not inspect file size for %s: %s", filepath, error)
             
             # 5. Анализ PE файлов
             if ext in ['.exe', '.dll', '.sys', '.scr', '.ocx', '.drv']:
-                pe_threats, pe_score = self._analyze_pe(filepath)
+                pe_threats, pe_score = self._analyze_pe(filepath, entropy)
                 threats.extend(pe_threats)
                 score += pe_score
             
@@ -146,15 +147,16 @@ class FileAnalyzer:
                 score += 1
         
         except Exception as e:
+            logger.exception("File analysis failed for %s", filepath)
             threats.append(f"Ошибка анализа: {str(e)}")
-            score += 1
+            return 'error', threats, max(score, 1)
         
         # Определяем статус
         if score >= 4 or (score >= 2 and len(threats) > 1):
             return 'suspicious', threats, score
         return 'clean', [], score
     
-    def _analyze_pe(self, filepath):
+    def _analyze_pe(self, filepath, entropy=None):
         """Анализ PE файла"""
         threats = []
         score = 0
@@ -187,22 +189,23 @@ class FileAnalyzer:
                     score += 1
                 
                 # Энтропия
-                entropy = self._calculate_entropy(content[:10000])
-                if entropy > 7.5:
-                    threats.append(f"Высокая энтропия ({entropy:.1f}/8.0)")
+                sampled_entropy = (
+                    self._calculate_entropy(content[:10000])
+                    if entropy is None else entropy
+                )
+                if sampled_entropy > 7.5:
+                    threats.append(f"Высокая энтропия ({sampled_entropy:.1f}/8.0)")
                     score += 2
-                elif entropy > 7.0:
-                    threats.append(f"Повышенная энтропия ({entropy:.1f}/8.0)")
+                elif sampled_entropy > 7.0:
+                    threats.append(f"Повышенная энтропия ({sampled_entropy:.1f}/8.0)")
                     score += 1
                 
                 # UPX упаковка
                 if b'UPX' in content[:1000]:
                     threats.append("UPX упаковка")
                     score += 1
-        
-        except:
-            pass
-        
+        except OSError:
+            raise
         return threats, score
     
     def _analyze_script(self, filepath):
@@ -290,13 +293,5 @@ class FileAnalyzer:
         """Расчет энтропии"""
         if not data:
             return 0.0
-        
-        try:
-            entropy = 0.0
-            for byte in range(256):
-                prob = data.count(byte) / len(data)
-                if prob > 0:
-                    entropy -= prob * math.log2(prob)
-            return entropy
-        except:
-            return 0.0
+        from native_scanner import calculate_entropy
+        return calculate_entropy(data)

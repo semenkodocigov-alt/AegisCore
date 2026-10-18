@@ -12,6 +12,7 @@ import { SettingsView } from './components/dashboard/SettingsView';
 import { AccountView } from './components/dashboard/AccountView';
 import { WelcomeScreen } from './components/auth/WelcomeScreen';
 import { apiService } from './services/api';
+import { LanguageProvider } from './context/LanguageContext';
 
 const AppContent: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -107,9 +108,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => (
   <ThemeProvider>
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </LanguageProvider>
   </ThemeProvider>
 );
 

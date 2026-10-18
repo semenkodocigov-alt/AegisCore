@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { InputField } from './InputField';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface RegisterFormProps {
   onSuccess?: () => void;
@@ -10,6 +11,7 @@ interface RegisterFormProps {
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin }) => {
   const { register, isLoading, error: authError, clearError, rememberMePreference } = useAuth();
+  const { t } = useLanguage();
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +20,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const passwordStrength = useMemo(() => {
-    if (!password) return { label: 'Add a password', score: 0 };
+    if (!password) return { label: t('Add a password'), score: 0 };
     const score = [
       password.length >= 8,
       /[A-Z]/.test(password),
@@ -26,10 +28,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
       /[^A-Za-z0-9]/.test(password),
     ].filter(Boolean).length;
     return {
-      label: ['Needs work', 'Fair', 'Good', 'Strong', 'Strong'][score],
+      label: ['Needs work', 'Fair', 'Good', 'Strong', 'Strong'].map((item) => t(item))[score],
       score,
     };
-  }, [password]);
+  }, [password, t]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,19 +41,19 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
     const normalizedEmail = email.trim();
 
     if (normalizedNickname.length < 2 || normalizedNickname.length > 32) {
-      setValidationError('Nickname must be between 2 and 32 characters.');
+      setValidationError(t('Nickname must be between 2 and 32 characters.'));
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setValidationError('Enter a valid email address.');
+      setValidationError(t('Enter a valid email address.'));
       return;
     }
     if (password.length < 8) {
-      setValidationError('Use a password with at least 8 characters.');
+      setValidationError(t('Use a password with at least 8 characters.'));
       return;
     }
     if (password !== confirmPassword) {
-      setValidationError('The passwords do not match.');
+      setValidationError(t('The passwords do not match.'));
       return;
     }
 
@@ -73,14 +75,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {validationError || authError}
+          {validationError || (authError ? t(authError) : '')}
         </motion.div>
       )}
 
       <InputField
-        label="Nickname"
+        label={t('Nickname')}
         autoComplete="nickname"
-        placeholder="How should we address you?"
+        placeholder={t('How should we address you?')}
         value={nickname}
         onChange={(event) => setNickname(event.target.value)}
         disabled={isLoading}
@@ -89,7 +91,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
         required
       />
       <InputField
-        label="Email address"
+        label={t('Email address')}
         type="email"
         autoComplete="email"
         placeholder="you@example.com"
@@ -99,10 +101,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
         required
       />
       <InputField
-        label="Password"
+        label={t('Password')}
         type="password"
         autoComplete="new-password"
-        placeholder="At least 8 characters"
+        placeholder={t('At least 8 characters')}
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         disabled={isLoading}
@@ -116,10 +118,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
         <span>{passwordStrength.label}</span>
       </div>
       <InputField
-        label="Confirm password"
+        label={t('Confirm password')}
         type="password"
         autoComplete="new-password"
-        placeholder="Enter it once more"
+        placeholder={t('Enter it once more')}
         value={confirmPassword}
         onChange={(event) => setConfirmPassword(event.target.value)}
         disabled={isLoading}
@@ -133,7 +135,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           onChange={(event) => setRememberMe(event.target.checked)}
           disabled={isLoading}
         />
-        <span>Remember me on this device</span>
+        <span>{t('Remember me on this device')}</span>
       </label>
 
       <motion.button
@@ -143,14 +145,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
         whileTap={{ scale: 0.985 }}
         transition={{ type: 'spring', stiffness: 420, damping: 28 }}
       >
-        {isLoading ? 'Creating account…' : 'Create account'}
+        {isLoading ? t('Creating account…') : t('Create account')}
         {!isLoading && <span aria-hidden="true">↗</span>}
       </motion.button>
 
       <p className="form-switch">
-        Already have an account?{' '}
+        {t('Already have an account?')}{' '}
         <button type="button" onClick={onSwitchToLogin} disabled={isLoading}>
-          Sign in
+          {t('Sign in')}
         </button>
       </p>
     </form>

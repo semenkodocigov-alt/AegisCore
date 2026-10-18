@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -16,6 +17,7 @@ export const InputField: React.FC<InputFieldProps> = ({
   ...props
 }) => {
   const generatedId = useId();
+  const { t } = useLanguage();
   const inputId = id || generatedId;
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
@@ -37,9 +39,9 @@ export const InputField: React.FC<InputFieldProps> = ({
             className="field-reveal"
             type="button"
             onClick={() => setShowPassword((value) => !value)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-label={t(showPassword ? 'Hide password' : 'Show password')}
           >
-            {showPassword ? 'Hide' : 'Show'}
+            {t(showPassword ? 'Hide' : 'Show')}
           </button>
         )}
       </div>

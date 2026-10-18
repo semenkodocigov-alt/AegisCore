@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { InputField } from './InputField';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -10,6 +11,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) => {
   const { login, isLoading, error: authError, clearError, rememberMePreference } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(rememberMePreference);
@@ -22,11 +24,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
 
     const normalizedEmail = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setValidationError('Enter a valid email address.');
+      setValidationError(t('Enter a valid email address.'));
       return;
     }
     if (!password) {
-      setValidationError('Enter your password.');
+      setValidationError(t('Enter your password.'));
       return;
     }
 
@@ -43,12 +45,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {validationError || authError}
+          {validationError || (authError ? t(authError) : '')}
         </motion.div>
       )}
 
       <InputField
-        label="Email address"
+        label={t('Email address')}
         type="email"
         autoComplete="email"
         placeholder="you@example.com"
@@ -58,10 +60,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
         required
       />
       <InputField
-        label="Password"
+        label={t('Password')}
         type="password"
         autoComplete="current-password"
-        placeholder="Your password"
+        placeholder={t('Your password')}
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         disabled={isLoading}
@@ -75,7 +77,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
           onChange={(event) => setRememberMe(event.target.checked)}
           disabled={isLoading}
         />
-        <span>Remember me on this device</span>
+        <span>{t('Remember me on this device')}</span>
       </label>
 
       <motion.button
@@ -85,14 +87,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
         whileTap={{ scale: 0.985 }}
         transition={{ type: 'spring', stiffness: 420, damping: 28 }}
       >
-        {isLoading ? 'Signing in…' : 'Sign in'}
+        {isLoading ? t('Signing in…') : t('Sign in')}
         {!isLoading && <span aria-hidden="true">↗</span>}
       </motion.button>
 
       <p className="form-switch">
-        New to Aegis Core?{' '}
+        {t('New to Aegis Core?')}{' '}
         <button type="button" onClick={onSwitchToRegister} disabled={isLoading}>
-          Create an account
+          {t('Create account')}
         </button>
       </p>
     </form>

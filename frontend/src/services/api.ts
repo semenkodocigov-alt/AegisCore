@@ -1,8 +1,8 @@
 import { ApiResponse } from '../types/api';
 import { AuthResponse, LoginPayload, ProfileUpdatePayload, RegisterPayload, User } from '../types/auth';
-import { NativeFileScanResult, QuarantinedFile, ScanProgress, SystemHealth } from '../types/scanner';
+import { NativeFileScanResult, QuarantinedFile, ScanProgress, ScanType, SystemHealth } from '../types/scanner';
 import { storageService } from './storage';
-import { DesktopApi } from '../types/desktop';
+import { DesktopApi, VirusTotalSettings } from '../types/desktop';
 
 const API_BASE = '/api';
 
@@ -137,7 +137,7 @@ class ApiService {
   }
 
   async startScan(
-    type: 'quick' | 'full' | 'custom',
+    type: ScanType,
     targetPath?: string,
   ): Promise<ApiResponse<{ scanId: string; status: string }>> {
     const nativeApi = await this.getDesktopApi();
@@ -158,6 +158,28 @@ class ApiService {
     const nativeApi = await this.getDesktopApi();
     if (nativeApi) return nativeApi.stop_scan();
     return this.request<{ status: string }>('/scan/stop', { method: 'POST' });
+  }
+
+  async pauseScan(): Promise<ApiResponse<{ status: string }>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.pause_scan();
+    return this.request<{ status: string }>('/scan/pause', { method: 'POST' });
+  }
+
+  async resumeScan(): Promise<ApiResponse<{ status: string }>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.resume_scan();
+    return this.request<{ status: string }>('/scan/resume', { method: 'POST' });
+  }
+
+  async getPrivilegeStatus(): Promise<ApiResponse<{ isAdmin: boolean }>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.get_privilege_status();
+    return {
+      success: true,
+      data: { isAdmin: false },
+      timestamp: Date.now(),
+    };
   }
 
   async getQuarantineFiles(): Promise<ApiResponse<QuarantinedFile[]>> {
@@ -188,6 +210,39 @@ class ApiService {
     const nativeApi = await this.getDesktopApi();
     if (nativeApi) return nativeApi.delete_quarantine_file(fileId);
     return this.request<{ deleted: boolean }>(`/quarantine/${fileId}`, { method: 'DELETE' });
+  }
+
+  async getVirusTotalSettings(): Promise<ApiResponse<VirusTotalSettings>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.get_virustotal_settings();
+    return this.desktopOnlyError('VirusTotal settings are available in the Aegis Core desktop app.');
+  }
+
+  async testSaveVirusTotalKey(
+    apiKey: string,
+    enabled: boolean,
+    uploadUnknown: boolean,
+  ): Promise<ApiResponse<VirusTotalSettings & { message: string }>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.test_save_virustotal_key(apiKey, enabled, uploadUnknown);
+    return this.desktopOnlyError('VirusTotal settings are available in the Aegis Core desktop app.');
+  }
+
+  async setVirusTotalOptions(
+    enabled: boolean,
+    uploadUnknown: boolean,
+  ): Promise<ApiResponse<VirusTotalSettings>> {
+    const nativeApi = await this.getDesktopApi();
+    if (nativeApi) return nativeApi.set_virustotal_options(enabled, uploadUnknown);
+    return this.desktopOnlyError('VirusTotal settings are available in the Aegis Core desktop app.');
+  }
+
+  private desktopOnlyError<T>(message: string): ApiResponse<T> {
+    return {
+      success: false,
+      error: { code: 'DESKTOP_ONLY', message },
+      timestamp: Date.now(),
+    };
   }
 
   async getSystemHealth(): Promise<ApiResponse<SystemHealth>> {
